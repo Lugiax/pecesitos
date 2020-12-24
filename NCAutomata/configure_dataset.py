@@ -27,13 +27,12 @@ def ejecutar(comando, mostrar=False):
 
 PWD = os.getcwd()
 DIR = os.path.abspath(args.dir_base)
-IMGS_DIR = os.path.join(DIR, 'imgs')
-MASKS_DIR = os.path.join(DIR, 'masks')
+#IMGS_DIR = os.path.join(DIR, 'imgs')
+#MASKS_DIR = os.path.join(DIR, 'masks')
 
-if not os.path.isdir(DIR):
-    os.makedirs(DIR)
-print(f'El directorio donde se descargarán todos los datos es {DIR}')
-os.chdir(DIR)
+#if not os.path.isdir(DIR):
+#    os.makedirs(DIR)
+#print(f'El directorio donde se descargarán todos los datos es {DIR}')
 
 try:
     import openimages
@@ -41,15 +40,17 @@ except:
     ejecutar('pip install openimages')
 
 print('Descarga de la base de datos')
-comando = f'oi_download_dataset --base_dir {IMGS_DIR} --labels Fish '\
+comando = f'oi_download_dataset --base_dir {DIR} --labels Fish '\
           f'--limit {args.n_imagenes} --format darknet'
 ejecutar(comando)
 print('  Base de datos descargada')
 
+os.chdir(DIR)
+
 print('Obteniendo datos de segmentaciones')
 ejecutar('wget https://storage.googleapis.com/openimages/v5/class-descriptions-boxable.csv')
 ejecutar('wget https://storage.googleapis.com/openimages/v5/train-annotations-object-segmentation.csv')
-ejecutar(f'mkdir {MASKS_DIR}')
+ejecutar(f'mkdir masks')
 print('  Datos obtenidos')
 
 sufixes = list(args.f_mascaras)

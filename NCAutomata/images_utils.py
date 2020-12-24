@@ -1,5 +1,10 @@
 import os, csv, random
-
+from glob import glob
+from skimage.io import imread
+from skimage.transform import resize
+from skimage.measure import regionprops_table
+from skimage.color import gray2rgb
+import numpy as np
 
 def obtener_codigos_clases(archivo):
     """	
@@ -69,3 +74,68 @@ def get_bboxes(f_path, shape):
             bboxes.append([yc-h2, yc+h2+1,
                            xc-w2, xc+w2+1])
     return bboxes
+
+
+def generar_regiones(data_dir, masks_disponibles, N, aleatorio=True,
+                    res_min=(100,100), solo_horizontales=True,
+                    resize_shape=None):
+    """
+    Genera imágenes que corresponden a regiones de segmentaciones en
+    imágenes. En una imagen puede existir más de un objeto deseado y
+    por lo tanto una región por cada uno de ellos. Esta función hace 
+    la búsqueda en las imágenes con  máscaras disponibles y devuelve
+    N regiones (imagen, mascara) válidas de resolución mínima especi-
+    ficada.
+    """
+
+    root = os.path.abspath(data_dir)
+    imgs_dir = os.path.join(root, 'fish','images')
+    masks_dir = os.path.join(root, 'masks')
+
+    lista_imgs_paths = glob(os.path.join(imgs_dir, '*'))
+    if aleatorio: random.shuffle(lista_imgs_paths)
+
+    restantes = N
+    regiones = []
+    while restantes*len(lista_imgs_paths) > 0:
+        next = lista_imgs_paths.pop()
+        img_id = os.path.basename(next).split('.')[0]
+        if img_id not in masks_disponibles.keys():
+            continue
+        img = imread(next)
+        if len(img.shape)<3: #en caso de tener una imagen en grises
+            img = gray2rgb(img)
+        H,W = img.shape[:2]
+
+        masks_paths = masks_disponibles[img_id]
+        for mp in masks_paths:
+            mask = resize(imread(os.path.join(masks_dir,mp)),
+                          (H,W))
+            bmask = (mask>0).astype(int)
+
+            reg_props = regionprops_table(bmask, properties=('bbox',))
+            y1, x1, y2, x2 = [reg_props[f'bbox-{i}'][0] for i in range(4)]
+            res_y = y2-y1
+            res_x = x2-x1
+
+            #Se revisa la resolución mínima de las regiones
+            if res_y<res_min[0] or res_x<res_min[1]:
+                continue
+            #Se revisa que sean horizontales
+            if solo_horizontales and res_y*1.3>res_x:
+                continue
+            reg_img = np.float32(img[y1:y2, x1:x2]/255)
+            reg_mask = np.float32(bmask[y1:y2, x1:x2])
+
+            if resize_shape is not None:
+                assert len(resize_shape)==2
+                reg_img = resize(reg_img, resize_shape)
+                reg_mask =resize(reg_mask,resize_shape)
+
+            regiones.append([reg_img,  #region RGB
+                            reg_mask]) #region Mask
+            restantes-=1
+            if restantes == 0:
+                break
+    
+    return regiones 
