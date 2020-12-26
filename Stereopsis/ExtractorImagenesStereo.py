@@ -4,21 +4,38 @@ from datetime import date
 import os
 import time
 from utils import adjustFrame
+from glob import glob
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('data_dir', type=str,
+                    help='Directorio base donde se encuentran las imágenes y las máscaras')
+parser.add_argument('--offset_i', type=int,
+                    help='Cuadros de diferencia del video izquierdo', default=0)
+parser.add_argument('--offset_d', type=int,
+                    help='Cuadros de diferencia del video derecho', default=0)
+parser.add_argument('--save_dir', type=str,
+                    help='Directorio base donde se descargarán todos los archivos',
+                    default='')
+
+args = parser.parse_args()
 
 pattern_size = (8,6)
-video_path_izq = '/home/carlos/Documentos/Codes/ProyectoMCC/Stereopsis/imgs/videocal/pruebas_robalo/toma1_izq.MP4'
-video_path_der = '/home/carlos/Documentos/Codes/ProyectoMCC/Stereopsis/imgs/videocal/pruebas_robalo/toma1_der.MP4'
-dir_to_save = '/home/carlos/Documentos/Codes/ProyectoMCC/Stereopsis/imgs/videocal/pruebas_robalo/imgs_toma1_calib'
+videos_path = args.data_dir
+assert os.path.isdir(videos_path), 'Ingrese un directorio de videos válido'
+video_path_izq = glob(os.path.join(videos_path, 'izq*.MP4'))[0]
+video_path_der = glob(os.path.join(videos_path, 'der*.MP4'))[0]
+assert os.path.isfile(video_path_izq) and os.path.isfile(video_path_der),\
+        'Archivos de video no válidos'
+
+dir_to_save = os.path.join(videos_path, 'calib') if args.save_dir=='' else args.save_dir
 video_delay = 0.00
-frames_offset_izq = (60+20)*25+3
-frames_offset_der = (60+18)*25
+frames_offset_izq = args.offset_i
+frames_offset_der = args.offset_d
 FPS = 25
 img_scale = 0.4
 
 #---------------------------------------------------------------------------------------
-
-assert os.path.exists(video_path_izq)
-assert os.path.exists(video_path_der)
 
 if not os.path.isdir(dir_to_save):
     os.makedirs(os.path.join(dir_to_save,'izq'))
