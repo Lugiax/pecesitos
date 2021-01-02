@@ -16,7 +16,7 @@ parser.add_argument('--f_mascaras', type=str,
 args = parser.parse_args()
 
 
-def ejecutar(comando, mostrar=True):
+def ejecutar(comando, mostrar=False):
     out = subprocess.Popen(comando.split(' '),
                        stdout=subprocess.PIPE,
                        stderr=subprocess.STDOUT)

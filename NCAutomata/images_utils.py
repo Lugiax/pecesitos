@@ -20,7 +20,7 @@ def obtener_codigos_clases(archivo):
 
 def mascaras_disponibles(data_dir, clases=['fish'], f_clases='class-descriptions-boxable.csv',
                         f_mascaras='train-annotations-object-segmentation.csv',
-                        masks_dir_name='masks', umbral_calidad=0.8):
+                        masks_dir_name='masks', umbral_calidad=0.9):
     """
     data_dir: directorio donde se descargaron los datos de las imágenes y las máscaras
     clases: lista con los nombres de las clases de interés
@@ -78,7 +78,7 @@ def get_bboxes(f_path, shape):
 
 def generar_regiones(data_dir, masks_disponibles, N, aleatorio=True,
                     res_min=(100,100), solo_horizontales=True,
-                    resize_shape=None):
+                    resize_shape=None,  padding=0, seed=None):
     """
     Genera imágenes que corresponden a regiones de segmentaciones en
     imágenes. En una imagen puede existir más de un objeto deseado y
@@ -93,16 +93,17 @@ def generar_regiones(data_dir, masks_disponibles, N, aleatorio=True,
     masks_dir = os.path.join(root, 'masks')
 
     lista_imgs_paths = glob(os.path.join(imgs_dir, '*'))
+    if seed is not None: random.seed(seed)
     if aleatorio: random.shuffle(lista_imgs_paths)
 
     restantes = N
     regiones = []
     while restantes*len(lista_imgs_paths) > 0:
-        next = lista_imgs_paths.pop()
-        img_id = os.path.basename(next).split('.')[0]
+        siguiente = lista_imgs_paths.pop()
+        img_id = os.path.basename(siguiente).split('.')[0]
         if img_id not in masks_disponibles.keys():
             continue
-        img = imread(next)
+        img = imread(siguiente)
         if len(img.shape)<3: #en caso de tener una imagen en grises
             img = gray2rgb(img)
         H,W = img.shape[:2]
@@ -115,6 +116,11 @@ def generar_regiones(data_dir, masks_disponibles, N, aleatorio=True,
 
             reg_props = regionprops_table(bmask, properties=('bbox',))
             y1, x1, y2, x2 = [reg_props[f'bbox-{i}'][0] for i in range(4)]
+            ##Se aplica el padding y se hace un ajuste
+            y1 = max(0, y1-padding)
+            y2 = min(H-1, y2+padding)
+            x1 = max(0, x1-padding)
+            x2 = min(W-1, x2+padding)
             res_y = y2-y1
             res_x = x2-x1
 

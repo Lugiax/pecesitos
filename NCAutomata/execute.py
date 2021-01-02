@@ -37,11 +37,16 @@ print('Usando GPU',tf.config.experimental.list_physical_devices('GPU'))
 
 
 ## PARÁMETROS -----------------------------------------------------------------
-CANALES = 16
-DIM = 100
+CANALES = 14
+DIM = 50
 BATCH_SIZE = args.batch
 N_IMGS = args.n_imgs #Número de imágenes para entrenar
 EPOCAS = args.epocas
+#Número de iteraciones en la ejecución del autómata
+ITER_MIN = 50
+ITER_MAX = 90
+#Padding en las imágenes a utilizar
+PADDING = 10
 
 DATA_DIR = args.data_dir
 CALIDAD_IMGS = 0.9
@@ -171,7 +176,8 @@ print('Generando las regiones')
 masks_data = mascaras_disponibles(DATA_DIR, umbral_calidad=CALIDAD_IMGS)
 regiones = generar_regiones(DATA_DIR, masks_data, N_IMGS,
                             solo_horizontales=True,
-                            resize_shape=(DIM,DIM))
+                            resize_shape=(DIM,DIM), padding=PADDING,
+                            seed=SEED)
 if len(regiones)!= N_IMGS:
     print(f'No hay suficientes imágenes como las solicitadas. {len(regiones)} disponibles')
 else:
@@ -194,7 +200,7 @@ trainer = tf.keras.optimizers.Adam(lr_sched)
 
 @tf.function
 def paso_entrenamiento(x, imagen, mascara):
-    niter = tf.random.uniform([], 50, 90, tf.int32)
+    niter = tf.random.uniform([], ITER_MIN, ITER_MAX, tf.int32)
     with tf.GradientTape() as g:
         for i in tf.range(niter):
             x = modelo(x, imagen)
