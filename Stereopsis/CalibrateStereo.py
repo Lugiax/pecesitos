@@ -5,15 +5,30 @@ import os
 import time
 from glob import glob
 import pickle
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('data_dir', type=str,
+                    help='Directorio base donde se encuentran las imágenes para calibrar')
+parser.add_argument('--save_dir', type=str,
+                    help='Directorio relativo al directorio de datos donde se guardarán los resultados',
+                    default='')
+parser.add_argument('--error', type=float,
+                    help='Error promedio máximo para la calibración, en píxeles',
+                    default=1)
+parser.add_argument('--imgs_min', type=int,
+                    help='Número mínimo de imágenes para hacer la calibración',
+                    default = 15)
+args = parser.parse_args()
 
 pattern_size = (8,6)
-imgs_dir = 'imgs/videocal/pruebaestereo/imgs'
+imgs_dir = os.path.abspath(args.data_dir)
 imgs_izq_dir = os.path.join(imgs_dir, 'izq')
 imgs_der_dir = os.path.join(imgs_dir, 'der')
-save_dir = 'imgs/videocal/pruebaestereo/calib'
-error_promedio_min = 1 #pixeles
-factor_de_disminucion = 0.9
-n_imgs_min = 15
+save_dir = os.path.join(imgs_dir, args.save_dir)
+error_promedio_min = args.error #pixeles
+factor_de_disminucion = 0.99
+n_imgs_min = args.imgs_min
 
 assert os.path.exists(imgs_izq_dir) and os.path.exists(imgs_der_dir),\
         'Los directorios de las imágenes no existen'
@@ -81,15 +96,34 @@ imgs_index = list(range(len(objpoints)))
 error_prom_max = np.Infinity
 contador_calibs = 0
 while error_prom_max>error_promedio_min:
-    print(f'\nCalibrando cámaras, iteracion {contador_calibs}, {len(objpoints_iter)} imágenes')
+    print(f'\nCalibrando cámaras, iteracion {contador_calibs+1}, {len(objpoints_iter)} imágenes')
+    ## Calibración de cada una de las cámaras:
+    print('\tCalibrando cámara izquierda...')
+    ret1, M1, distcoef1, rvecs1, tvecs1, _, _, errors1 = cv2.calibrateCameraExtended(objpoints_iter, imgpoints1_iter,
+                                                            img1.shape[::-1], None, None,
+                                                            flags=cv2.CALIB_ZERO_TANGENT_DIST+\
+                                                                  cv2.CALIB_FIX_K3)
+    
+    print(f'\t   -Error promedio {errors1.mean():.4}, max {errors1.max():.4}, min {errors1.min():.4}')
+    print('\tCalibrando cámara derecha...')
+    ret2, M2, distcoef2, rvecs2, tvecs2, _, _, errors2 = cv2.calibrateCameraExtended(objpoints_iter, imgpoints2_iter,
+                                                            img2.shape[::-1], None, None,
+                                                            flags=cv2.CALIB_ZERO_TANGENT_DIST+\
+                                                                  cv2.CALIB_FIX_K3)
+    print(f'\t   -Error promedio {errors2.mean():.4}, max {errors2.max():.4}, min {errors2.min():.4}')
+    print('\tCalibrando sistema estéreo...')
     ret, M1, distcoef1, M2, distcoef2, R, T, E, F, perViewErrors =\
             cv2.stereoCalibrateExtended(objpoints_iter, imgpoints1_iter, imgpoints2_iter,
-                                None, None, None, None,
-                                img1.shape[::-1], None, None,
-                                criteria=criteria)
+                                        M1, distcoef1, M2, distcoef2,
+                                        img1.shape[::-1], None, None,
+                                        criteria=criteria,
+                                        flags = cv2.CALIB_FIX_INTRINSIC +\
+                                                cv2.CALIB_SAME_FOCAL_LENGTH +\
+                                                cv2.CALIB_ZERO_TANGENT_DIST+\
+                                                cv2.CALIB_FIX_PRINCIPAL_POINT+\
+                                                cv2.CALIB_FIX_ASPECT_RATIO+\
+                                                cv2.CALIB_FIX_K3)
 
-    #print(R, R.shape)
-    #print(T, T.shape)
     promedio_errores = perViewErrors.mean(axis=0)
     print(f'\tError promedio\n\t\tCamara 1 = {promedio_errores[0]}'
          f'\n\t\tCamara 2 = {promedio_errores[1]}')
