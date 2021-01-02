@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import os
+from pprint import pprint as pp
 
 parser = argparse.ArgumentParser()
 parser.add_argument('dir_base', type=str,
@@ -15,25 +16,18 @@ parser.add_argument('--f_mascaras', type=str,
 args = parser.parse_args()
 
 
-def ejecutar(comando, mostrar=False):
+def ejecutar(comando, mostrar=True):
     out = subprocess.Popen(comando.split(' '),
                        stdout=subprocess.PIPE,
                        stderr=subprocess.STDOUT)
     to_print, error = out.communicate()
     if error is not None: 
-        print(f'Error: {error}')
+        pp(f'Error: {error}')
     if mostrar: 
-        print(to_print)
+        pp(to_print)
 
 PWD = os.getcwd()
 DIR = os.path.abspath(args.dir_base)
-#IMGS_DIR = os.path.join(DIR, 'imgs')
-#MASKS_DIR = os.path.join(DIR, 'masks')
-
-#if not os.path.isdir(DIR):
-#    os.makedirs(DIR)
-#print(f'El directorio donde se descargarán todos los datos es {DIR}')
-
 try:
     import openimages
 except:
@@ -42,7 +36,7 @@ except:
 print('Descarga de la base de datos')
 comando = f'oi_download_dataset --base_dir {DIR} --labels Fish '\
           f'--limit {args.n_imagenes} --format darknet'
-ejecutar(comando)
+ejecutar(comando, mostrar=False)
 print('  Base de datos descargada')
 
 os.chdir(DIR)
@@ -54,6 +48,7 @@ ejecutar(f'mkdir masks')
 print('  Datos obtenidos')
 
 sufixes = list(args.f_mascaras)
+print(f'Obteniendo los archivos {sufixes}')
 for s in sufixes:
     print(f'Descargando el conjunto de datos {s}')
     ejecutar(f'wget https://storage.googleapis.com/openimages/v5/train-masks/train-masks-{s}.zip')
