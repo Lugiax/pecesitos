@@ -70,7 +70,7 @@ def obtener_vivos(x, umbral = 0.1):
     vivos = tf.nn.max_pool2d(mascara, 3, [1,1,1,1], 'SAME') > umbral
     return vivos
 
-def generar_semillas(BATCH, DIM=100, CANALES=16, tipo='gauss'):
+def generar_semillas(BATCH, DIM=DIM, CANALES=CANALES, tipo='gauss'):
     """
     Genera un arreglo de dimensiones (BATCH,DIM,DIM,CANALES) donde el primer canal
     es una máscara no binaria de distribución gaussiana en 2D con media en el
@@ -232,7 +232,7 @@ for e in range (EPOCAS+1):
     imagen, mascara = datos[id_img]
     ##Tal vez sería bueno hacer que las semillas se parecieran más a lo 
     ##del artículo. Aquí se generan nuevas semillas en cada época
-    x0 = generar_semillas(BATCH_SIZE, tipo=TIPO_SEMILLAS)
+    x0 = generar_semillas(BATCH_SIZE, DIM=DIM, tipo=TIPO_SEMILLAS)
 
     x , perdida = paso_entrenamiento(x0, imagen, mascara)
     perdidas_log[id_img].append(perdida)
