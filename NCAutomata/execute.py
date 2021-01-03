@@ -47,6 +47,7 @@ ITER_MIN = 50
 ITER_MAX = 90
 #Padding en las imágenes a utilizar
 PADDING = 10
+SEED=19
 
 DATA_DIR = args.data_dir
 CALIDAD_IMGS = 0.9
