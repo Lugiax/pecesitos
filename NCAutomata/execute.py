@@ -181,6 +181,7 @@ regiones = generar_regiones(DATA_DIR, masks_data, N_IMGS,
                             seed=SEED)
 if len(regiones)!= N_IMGS:
     print(f'No hay suficientes imágenes como las solicitadas. {len(regiones)} disponibles')
+    N_IMGS = len(regiones)
 else:
     print('Regiones generadas satisfactoriamente :D')
 
@@ -242,12 +243,12 @@ for e in range (EPOCAS+1):
         mejor = x[ids[0]]
         peor = x[ids[-1]]
 
-        fig, axes = plt.subplots(1, 4, figsize=(12,4))
+        fig, axes = plt.subplots(1, 4, figsize=(20,8))
         imgs_to_plot = [imagen, mascara, mejor[..., 0], peor[..., 0]]
         titulos = ['Original', 'Original', 'Mejor', 'Peor']
         for ax, img, titulo in zip(axes, imgs_to_plot, titulos):
             ax.imshow(img)
-            ax.set_title('Original')
+            ax.set_title(titulo)
             ax.axis('off')
         if SHOW_PLOTS: plt.show()
 
