@@ -8,6 +8,7 @@ from skimage.color import gray2rgb
 from random import sample
 import random
 from glob import glob
+import argparse
 
 import tensorflow as tf
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
@@ -49,8 +50,6 @@ def obtener_datos(anot_path, imgs_dir, resized_shape = (50,50)):
             x1,x2,y1,y2 = [int(v) for v in r[:4]]
             H,W= resized_shape
             p1y,p1x,p2y,p2x = [float(v) for v in r[4:]]
-            #p1y, p2y = int(p1y*H), int(p2y*H)
-            #p1x, p2x = int(p1x*W), int(p2x*W)
             regiones.append( ( resize(img[y1:y2, x1:x2], resized_shape),
                               [p1y,p1x,p2y,p2x] ) )
     return regiones
@@ -106,7 +105,7 @@ SAVE_DIR = args.save_dir
 RUN_NAME = args.nombre
 ANOT_DIR = args.anot_dir
 IMGS_DIR = args.imgs_dir
-P_TRAIN = 0.8
+P_TRAIN = 0.85
 
 
 RUN_DIR = os.path.join(SAVE_DIR, RUN_NAME)
@@ -148,7 +147,7 @@ for i in range(EPOCAS):
         plt.plot(LOG)
         plt.show()
     if i%100 == 0:
-        modelo.save_weights(os.path.join(RUN_DIR,f'pesos.tf'), save_format='tf')
+        modelo.save(RUN_DIR)
         plt.savefig(os.path.join(RUN_DIR, 'perdida.png'))
 
 #Evaluación
@@ -160,4 +159,6 @@ metrica.update_state(pts_lote, prediccion)
 
 print(f'El resultado RMSE (Root Mean Squared Error) = {metrica.result().numpy()}')
 
-modelo.save_weights(os.path.join(RUN_DIR,f'pesos.tf'), save_format='tf')
+modelo.save(RUN_DIR)
+plt.plot(LOG)
+plt.savefig(os.path.join(RUN_DIR, 'perdida.png'))

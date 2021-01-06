@@ -58,6 +58,8 @@ RUN_NAME = args.name
 SHOW_PLOTS=args.plot
 TIPO_SEMILLAS = args.semillas
 
+SAVE_STEPS = 100
+
 ## FUNCIONES DE APOYO --------------------------------------------------------
 
 def obtener_vivos(x, umbral = 0.1):
@@ -221,7 +223,7 @@ if not os.path.isdir(os.path.join(SAVE_DIR, RUN_NAME)):
     os.makedirs(os.path.join(folder, 'res_imgs'))
     for i in range(N_IMGS):
         os.mkdir(os.path.join(folder, 'res_imgs', f'{i}'))
-pesos_filename = os.path.join(SAVE_DIR, RUN_NAME, 'weights',f'pesos_{RUN_NAME}.tf')
+RUN_DIR = os.path.join(SAVE_DIR, RUN_NAME)
 
 
 perdidas_log = {i:[] for i in range(N_IMGS)}
@@ -238,7 +240,7 @@ for e in range (EPOCAS+1):
     x , perdida = paso_entrenamiento(x0, imagen, mascara)
     perdidas_log[id_img].append(perdida)
 
-    if e%5==0:
+    if e%SAVE_STEPS==0:
         ids = f_perdida(x, mascara).numpy().argsort()
         mejor = x[ids[0]]
         peor = x[ids[-1]]
@@ -266,10 +268,10 @@ for e in range (EPOCAS+1):
         plt.savefig(os.path.join(SAVE_DIR, RUN_NAME, 'res_imgs',
                                  str(id_img),'perdida.png'))
     
-    if e%100 == 0:
-        modelo.save_weights(os.path.join(SAVE_DIR, RUN_NAME, 'weights',f'pesos_{RUN_NAME}.tf'), save_format='tf')
+    if e%500 == 0:
+        modelo.save_weights(os.path.join(RUN_DIR, 'wegiths'), save_format='tf')
 
     print(f'\t Perdida: {perdida}')
 
-modelo.save_weights(pesos_filename, save_format='tf')
-print(f'Fin del entrenamiento. Pesos guardados en ')
+modelo.save_weights(os.path.join(RUN_DIR, 'weights'), save_format='tf')
+print(f'Fin del entrenamiento. Pesos guardados en {os.path.join(RUN_DIR,"weights")}')
