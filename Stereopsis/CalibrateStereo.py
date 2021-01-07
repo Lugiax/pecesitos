@@ -19,6 +19,9 @@ parser.add_argument('--error', type=float,
 parser.add_argument('--imgs_min', type=int,
                     help='Número mínimo de imágenes para hacer la calibración',
                     default = 15)
+parser.add_argument('--tamano_cuadro', type=int,
+                    help='Tamaño de un cuadro del tablero de calibración',
+                    default = 25)
 args = parser.parse_args()
 
 pattern_size = (8,6)
@@ -160,7 +163,8 @@ res = {'cameraMatrix1': M1,
        'R': R,
        'T': T,
        'E': E,
-       'F': F}
+       'F': F,
+       'tamaño': args.tamano_cuadro}
 print('\nGuardando resultados...')
 save_filename = os.path.join(save_dir,'calibData.pk')
 with open(save_filename, 'wb') as f:
