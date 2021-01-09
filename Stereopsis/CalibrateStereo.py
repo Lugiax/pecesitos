@@ -164,7 +164,7 @@ res = {'cameraMatrix1': M1,
        'T': T,
        'E': E,
        'F': F,
-       'tamaño': args.tamano_cuadro}
+       'tamano_cuadro': args.tamano_cuadro}
 print('\nGuardando resultados...')
 save_filename = os.path.join(save_dir,'calibData.pk')
 with open(save_filename, 'wb') as f:

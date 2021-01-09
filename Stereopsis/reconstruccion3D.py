@@ -4,9 +4,11 @@ import cv2 as cv
 import pickle
 from scipy.spatial.distance import euclidean
 
-path_img_i = '/mnt/1950EF8830BF5793/PROYECTO/AmbContr/P3/imgs/izq/frame_izq_1.png'
-path_img_d = '/mnt/1950EF8830BF5793/PROYECTO/AmbContr/P3/imgs/der/frame_der_1.png'
-calib_data_path = '/mnt/1950EF8830BF5793/PROYECTO/AmbContr/P3/calib/calibData.pk'
+directorio = '/mnt/1950EF8830BF5793/PROYECTO/AmbContr/P4'
+frame = 2
+path_img_i = os.path.join(directorio, f'imgs/izq/frame_izq_{frame}.png')
+path_img_d = os.path.join(directorio, f'imgs/der/frame_der_{frame}.png')
+calib_data_path = os.path.join(directorio, 'calib/calibData.pk')
 
 factor_escala = 2
 ventana = (100,100)
@@ -91,6 +93,8 @@ puntos3D = []
 puntos = []
 primer_punto = False
 puntos_agregados = False
+tamano_cuadro = stereo_params.get('tamano_cuadro', 25)
+unidades='mm'
 
 cv.namedWindow('imagen')
 cv.setMouseCallback('imagen',mouse)
@@ -150,9 +154,9 @@ while True:
                 puntos3D.pop();puntos_i.pop();puntos_d.pop()
                 puntos_corr_i.pop();puntos_corr_d.pop()
             if len(puntos3D)==2:
-                distancia = euclidean(*puntos3D)
+                distancia = euclidean(*puntos3D)*tamano_cuadro
                 print(f'Distancia entre los puntos {puntos3D[0]} y {puntos3D[1]} es de '
-                      f'{distancia}')
+                      f'{distancia}{unidades}')
 
         puntos=[]
         puntos_agregados=False
