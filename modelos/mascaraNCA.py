@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from images_utils import*
 import matplotlib.pyplot as plt
+import pandas as pd
 #tf.config.experimental.list_physical_devices('GPU')
 
 ###Funciones-----------------------------------------------------------------------
@@ -123,7 +124,6 @@ class NCA(tf.keras.Model):
 
         RUN_DIR = os.path.join(save_dir, run_name)
         if not os.path.isdir(RUN_DIR):
-            os.makedirs(os.path.join(RUN_DIR, 'weights'))
             os.makedirs(os.path.join(RUN_DIR, 'res_imgs'))
             for i in range(n_imgs):
                 os.mkdir(os.path.join(RUN_DIR, 'res_imgs', f'{i}'))
@@ -142,7 +142,7 @@ class NCA(tf.keras.Model):
             x , perdida = self.paso_entrenamiento(x0, imagen, mascara)
             perdidas_log[id_img].append(perdida)
 
-            if e%int(0.05*epocas)==0:
+            if e%50==0:
                 ids = f_perdida(x, mascara).numpy().argsort()
                 mejor = x[ids[0]]
                 peor = x[ids[-1]]
@@ -172,10 +172,14 @@ class NCA(tf.keras.Model):
             
             if e%int(0.2*epocas) == 0:
                 self.save_weights(os.path.join(RUN_DIR, 'weights'), save_format='tf')
+                df = pd.DataFrame.from_dict(perdidas_log, dtype=np.float32)
+                df.to_csv(os.path.join(RUN_DIR, 'log.csv'), index=False)
 
             print(f'\t Perdida: {perdida}')
 
         self.save_weights(os.path.join(RUN_DIR, 'weights'), save_format='tf')
+        df = pd.DataFrame.from_dict(perdidas_log, dtype=np.float32)
+        df.to_csv(os.path.join(RUN_DIR, 'log.csv'), index=False)
         print(f'Fin del entrenamiento. Pesos guardados en {os.path.join(RUN_DIR,"weights")}')
 
     def cargar_pesos(self, pesos_path):
