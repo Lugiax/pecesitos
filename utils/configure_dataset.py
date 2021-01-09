@@ -51,7 +51,7 @@ if args.solo in ['imagenes','']:
     print('  Base de datos de las imagenes descargada')
 
 imgs_disp = [os.path.basename(i) for i in glob('fish/images/*.*')]
-
+encontradas = 0
 if args.solo in ['mascaras','']:
     print('Obteniendo datos de segmentaciones')
     ejecutar('wget https://storage.googleapis.com/openimages/v5/class-descriptions-boxable.csv')
@@ -60,7 +60,7 @@ if args.solo in ['mascaras','']:
     print('  Datos obtenidos')
 
     sufixes = args.f_mascaras
-    print(f'Obteniendo los archivos {', '.join(list(sufixes))}')
+    print(f'Obteniendo los archivos {", ".join(list(sufixes))}')
     for s in sufixes:
         print(f'Descargando el conjunto de datos {s}')
         ejecutar(f'wget https://storage.googleapis.com/openimages/v5/train-masks/train-masks-{s}.zip')
@@ -70,11 +70,12 @@ if args.solo in ['mascaras','']:
                 print('\tBuscando archivos válidos...', end=' ')
                 valids = [p for p in z.namelist() if p.split('_')[0]+'.jpg' in imgs_disp]
                 print(f'{len(valids)} encontrados. Descomprimiendo...')
+                encontradas += len(valids)
                 z.extractall('masks', valids)
                 print(f'\tSe extrayeron con éxito.')
             #ejecutar(f'unzip train-masks-{s}.zip -d masks')
             print('\tBorrando...')
             ejecutar(f'rm train-masks-{s}.zip')
             print('\tTerminado :D \n')
-
+    print(f'Se extrayeron {encontradas} mascaras en total')
 os.chdir(PWD)
