@@ -50,7 +50,7 @@ class NCA(tf.keras.Model):
         self.lr=2e-3
         self.canales = canales
         self.nn = tf.keras.Sequential([
-                    tf.keras.layers.Conv2D(256, 1, activation = tf.nn.relu),
+                    tf.keras.layers.Conv2D(128, 1, activation = tf.nn.relu),
                     tf.keras.layers.Conv2D(self.canales, 1, activation=None,
                                            #kernel_initializer=tf.zeros_initializer
                                            )
@@ -212,25 +212,64 @@ class NCA(tf.keras.Model):
 
 
 if __name__=='__main__':
-    from skimage.io import imread
-    DATA_DIR = '/home/carlos/Documentos/Codes/ProyectoMCC/datos'
-    SAVE_DIR = '/home/carlos/Documentos/Codes/ProyectoMCC/corridas'
-    RUN_NAME = 'prueba_BORRAR'
+    import argparse
+    from PIL import Image
 
-    img_path = ''
-    w_path = ''
+    from glob import glob
+    import os
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('accion', type=str,
+                        help='entrenar, inferir')
+    parser.add_argument('dir', type=str,
+                        help='Directorio de datos')
+    parser.add_argument('--canales', type=int,
+                        help='Número de canales de las semillas', 
+                        default = 14)
+    parser.add_argument('--epocas', type=int,
+                        help='Número de épocas de entrenamiento', 
+                        default = 10000)
+    parser.add_argument('--dim', type=int,
+                        help='Tamaño de las imágenes de entrenamiento',
+                        default=100)
+    parser.add_argument('--batch', type=int,
+                        help='Número de máscaras por paso',
+                        default=8)
+    parser.add_argument('--n_imgs', type=int,
+                        help='Número de imágenes para hacer el entrenamiento',
+                        default=10)
+    parser.add_argument('--padding', type=int,
+                        help='Padding de las imágenes de entrenamiento',
+                        default=10)
+    parser.add_argument('--save_dir', type=str,
+                        help='Directorio para guardar los resultados',
+                        default='.')
+    parser.add_argument('--run_name', type=str,
+                        help='Nombre de la corrida',
+                        default='corr1')
+    parser.add_argument('--w_path', type=str,
+                        help='Ruta a los pesos del modelo',
+                        default='corr1/weights')
+    args = parser.parse_args()
+
+
     automata = NCA()
-    """automata.entrenar(DATA_DIR,
-                      epocas=100,
-                      dim=50,
-                      batch=4,
-                      n_imgs=1,
-                      padding=10,
-                      save_dir=SAVE_DIR,
-                      run_name=RUN_NAME)
-    """
-    automata.load_weights(w_path)
 
-    img = imread(img_path)
-    res = automata.generar(img)
-    print(res.shape)
+    assert args.accion in ['entrenar', 'inferir'], 'Seleccionar una acción válida'
+    if args.accion=='entrenar':
+        automata.entrenar(args.dir,
+                          epocas=args.epocas,
+                          dim=args.dim,
+                          batch=args.batch,
+                          n_imgs=args.n_imgs,
+                          padding=args.padding,
+                          save_dir=args.save_dir,
+                          run_name=args.run_name)
+    else:
+        automata.load_weights(args.w_path)
+        imgs_list = glob(os.path.join(dir, '*.*'))
+        for img_path in imgs_list:
+            im_name = os.path.basename(img_path).split('.')[0]
+            img = Image.open(img)
+            res = Image.fromarray(automata.generar(img)[0])
+            res.save(os.path.join(args.save_dir, im_name+'.png'))
