@@ -40,6 +40,11 @@ def f_perdida(x, mascara):
     resta = x[...,:1] - mascara[..., None]
     return tf.reduce_mean(tf.square(resta), [-2, -3, -1])
 
+def guardar_log(log, fname):
+    with open(fname, 'w') as f:
+        for k in log:
+            f.write(f'{k},{",".join([str(i) for i in log[k]])}\n')
+
 ###Modelo ---------------------------------------------------------------------
 
 class NCA(tf.keras.Model):
@@ -128,6 +133,9 @@ class NCA(tf.keras.Model):
             for i in range(n_imgs):
                 os.mkdir(os.path.join(RUN_DIR, 'res_imgs', f'{i}'))
 
+        with open(os.path.join(RUN_DIR, 'info.txt'), 'w') as f:
+            f.write(f'epocas:{epocas}\nbatch:{batch}\nn_imgs:{n_imgs}\ndim:{dim}\npadding:{padding}')
+
         perdidas_log = {i:[] for i in range(n_imgs)}
 
         for e in range (epocas+1):
@@ -140,7 +148,7 @@ class NCA(tf.keras.Model):
             x0 = generar_semillas(batch, CANALES=self.canales, DIM=dim, tipo='')
 
             x , perdida = self.paso_entrenamiento(x0, imagen, mascara)
-            perdidas_log[id_img].append(perdida)
+            perdidas_log[id_img].append(float(perdida))
 
             if e%50==0:
                 ids = f_perdida(x, mascara).numpy().argsort()
@@ -172,14 +180,12 @@ class NCA(tf.keras.Model):
             
             if e%int(0.2*epocas) == 0:
                 self.save_weights(os.path.join(RUN_DIR, 'weights'), save_format='tf')
-                df = pd.DataFrame.from_dict(perdidas_log, dtype=np.float32)
-                df.to_csv(os.path.join(RUN_DIR, 'log.csv'), index=False)
+                guardar_log(perdidas_log, os.path.join(RUN_DIR, 'log.csv'))
 
             print(f'\t Perdida: {perdida}')
 
         self.save_weights(os.path.join(RUN_DIR, 'weights'), save_format='tf')
-        df = pd.DataFrame.from_dict(perdidas_log, dtype=np.float32)
-        df.to_csv(os.path.join(RUN_DIR, 'log.csv'), index=False)
+        guardar_log(perdidas_log, os.path.join(RUN_DIR, 'log.csv'))
         print(f'Fin del entrenamiento. Pesos guardados en {os.path.join(RUN_DIR,"weights")}')
 
     def cargar_pesos(self, pesos_path):
