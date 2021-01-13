@@ -5,10 +5,8 @@ import torch
 import numpy as np
 from numpy import random
 
-
-yolov5_path = os.path.abspath('./yolov5')
-sys.path.append(yolov5_path)
-
+file_dir = os.path.dirname(__file__)
+sys.path.append(os.path.join(file_dir, 'yolov5'))
 
 from models.experimental import attempt_load
 from utils.datasets import letterbox
@@ -59,6 +57,8 @@ class Localizador:
 
 
 if __name__ == '__main__':
+    yolov5_path = os.path.abspath('./yolov5')
+    sys.path.append(yolov5_path)
     import cv2
     img_path = '/home/carlos/Documentos/Codes/ProyectoMCC/datos/imagenes/0b91f658f06b594f.jpg'
     img = cv2.imread(img_path)
