@@ -3,27 +3,38 @@ import os, sys
 import argparse
 import time
 from glob import glob
-
+from PIL import Image
 
 from herramientas.general import adjustFrame, obtener_frame
 #sys.path.append(os.path.abspath('modelos/yolov5'))
-from modelos import localizador, mascaraNCA
+from modelos import localizador#, mascaraNCA
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('data_dir', type=str,
                     help='Directorio base donde se encuentran las imágenes y las máscaras')
 parser.add_argument('--offset_i', type=int,
-                    help='Cuadros de diferencia del video izquierdo', default=0)
+                    help='Cuadros de diferencia del video izquierdo',
+                    default=0)
 parser.add_argument('--offset_d', type=int,
-                    help='Cuadros de diferencia del video derecho', default=0)
+                    help='Cuadros de diferencia del video derecho',
+                    default=0)
 parser.add_argument('--save_dir', type=str,
                     help='Directorio base donde se descargarán todos los archivos',
                     default='')
 parser.add_argument('--frame0', type=str,
                     help='Cuadro de inicio de los videos, puede ser una expresión.', default='0')
+parser.add_argument('--frame_max', type=str,
+                    help='Número de cuadros máximos a considerar. Puede ser una expresión, '
+                         'cuando es 0 se utilizan todos los cuadros disponibles',
+                    default='0')
 parser.add_argument('--pesos_loc', type=str,
-                    help='Ruta a los pesos del localizador', default='deteccion/pesos/yolo_medium.pt')
+                    help='Ruta a los pesos del localizador',
+                    default='deteccion/pesos/yolo_medium.pt')
+parser.add_argument('--mostrar', type=bool,
+                    help='Mostrar o no la interfaz gráfica. Sino los resultados se'
+                         ' almacenarán en la carpeta correspondiente',
+                    default=True)
 
 args = parser.parse_args()
 
@@ -37,15 +48,21 @@ def dibujar_rois(img, rois, conf_min=0.5):
     return img
 
 dir_videos = os.path.abspath(args.data_dir)
+save_dir = os.path.join(dir_videos, 'res_sis') if args.save_dir=='' else args.save_dir
 p_vid_izq = glob(os.path.join(dir_videos, 'izq*.MP4'))[0]
 p_vid_der = glob(os.path.join(dir_videos, 'der*.MP4'))[0]
 p_calib_data = os.path.join(dir_videos, 'calib', 'calibData.pk')
+
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)
+    print(f'Se ha creado el directorio de guardado: {save_dir}')
 
 video_delay = 0.00
 FPS = 25
 img_scale = 0.4
 frame0 = max(abs(args.offset_d-args.offset_i),
             int(eval(args.frame0)))
+frame_max = int(eval(args.frame_max))
 
 cam_izq = cv2.VideoCapture(p_vid_izq)
 cam_der = cv2.VideoCapture(p_vid_der)
@@ -58,10 +75,10 @@ frame_der, frame_counter_der = obtener_frame(cam_der)
 frames_offset_izq = args.offset_i + frame0
 frames_offset_der = args.offset_d + frame0
 
-
-pausa = True
-detectar = False
-print('Se inicia la visualización de los videos')
+pausa = args.mostrar
+detectar = not args.mostrar
+f_count = 0
+print('Se inician los videos')
 while cam_izq.isOpened() or cam_der.isOpened():
     #Se hace el ajuste de los frames desfasados
     while frames_offset_izq>0 or frames_offset_der>0:
@@ -98,7 +115,14 @@ while cam_izq.isOpened() or cam_der.isOpened():
     time.sleep(video_delay)
     img_comp = cv2.hconcat([frame_izq, frame_der])
     img_comp = adjustFrame(img_comp, scale = img_scale)
-    cv2.imshow('Frame', img_comp)
+    if args.mostrar:
+        cv2.imshow('Frame', img_comp)
+    else:
+        img = Image.from_array(cv2.cvtColor(img_comp, cv2.COLOR_BGR2RGB))
+        img.save(os.path.join(save_dir, f'frame_{f_count}.png'))
+    f_count += 1
+    if frame_max>0 and f_count>=frame_max:
+        break
 
 cam_izq.release()
 cam_der.release()
