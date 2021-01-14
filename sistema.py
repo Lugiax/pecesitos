@@ -8,7 +8,8 @@ from PIL import Image
 
 
 from herramientas.general import adjustFrame, obtener_frame
-#sys.path.append(os.path.abspath('modelos/yolov5'))
+#sys.path.append(os.path.abspath('modelos'))
+#print('path desde app principal', sys.path)
 from modelos import localizador, mascaraNCA
 
 

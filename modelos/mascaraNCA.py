@@ -1,8 +1,12 @@
 import tensorflow as tf
 import numpy as np
-from images_utils import*
 import matplotlib.pyplot as plt
 import pandas as pd
+import os, sys
+
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+from images_utils import*
 #tf.config.experimental.list_physical_devices('GPU')
 
 ###Funciones-----------------------------------------------------------------------

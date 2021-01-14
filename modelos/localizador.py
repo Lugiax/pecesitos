@@ -7,6 +7,7 @@ from numpy import random
 
 file_dir = os.path.dirname(__file__)
 sys.path.append(os.path.join(file_dir, 'yolov5'))
+#print('Path desde localizador', file_dir,sys.path)
 
 from models.experimental import attempt_load
 from utils.datasets import letterbox
