@@ -205,7 +205,9 @@ class NCA(tf.keras.Model):
         if weights_path is not None:
             self.load_weights(weights_path)
 
-        img = img0[None, ...]/255
+        if img.max()>1:
+            img /= 255
+        img = img0[None, ...]
         img = tf.image.resize(img.astype(np.float32), (dim,dim), antialias=True)
         mask =  generar_semillas(batch, dim, canales)
         print('Iniciando inferencia')
@@ -213,6 +215,7 @@ class NCA(tf.keras.Model):
             mask = self(mask, img[0])
 
         res_mask = tf.image.resize(mask[..., :1], img0.shape[:2])
+        res_mask = tf.clip_by_value(res_mask, 0, 1)
         if bin_mask:
             return obtener_vivos(res_mask, umbral)[..., 0]
         else:
