@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os, sys
+from skimage.transform import resize
 
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
@@ -196,7 +197,7 @@ class NCA(tf.keras.Model):
         self.load_weights(pesos_path)
 
     def generar(self, img0, batch=1, iteraciones=None, canales=None, dim=None,
-                weights_path=None, bin_mask=False, umbral=0.5):
+                weights_path=None, not_bin=False, umbral=0.1):
         """
         imgs puede ser un arreglo o una lista de imágenes
         """
@@ -208,22 +209,29 @@ class NCA(tf.keras.Model):
             dim = self.dim
         if weights_path is not None:
             self.load_weights(weights_path)
-
-        if img.max()>1:
-            img /= 255
+        normalizar=False
+        if img0.max()>1:
+            img = img0/255
+            normalizar=True
+        else:
+            img = img0.copy()
+        #print(f'Vals de img para mascara {img.min()} - {img.max()}')
         img = img0[None, ...]
         img = tf.image.resize(img.astype(np.float32), (dim,dim), antialias=True)
         mask =  generar_semillas(batch, dim, canales)
-        print('Iniciando inferencia')
+        #print('Iniciando inferencia')
         for _ in tf.range(iteraciones):
             mask = self(mask, img[0])
+        #res_mask = tf.image.resize(mask[..., :1], img0.shape[:2])
+        #print(f'Vals de mascara antes de devolver {mask.numpy().min()}-{mask.numpy().max()}')
+        #res_mask = (tf.keras.utils.normalize(res_mask, order=1)+1)/2
+        #print(f'Despues {res_mask.numpy().min()}-{res_mask.numpy().max()}')
 
-        res_mask = tf.image.resize(mask[..., :1], img0.shape[:2])
-        res_mask = tf.clip_by_value(res_mask, 0, 1)
-        if bin_mask:
-            return obtener_vivos(res_mask, umbral)[..., 0]
+        if not_bin:
+            return mask[0,..., 0].numpy()
         else:
-            return res_mask[..., 0]
+            res_mask = obtener_vivos(mask, umbral)[0,...,0].numpy()
+            return resize(res_mask, img0.shape[:2])>0
 
 
 
