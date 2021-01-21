@@ -17,7 +17,7 @@ def adjustFrame(frame, scale = 1):
     return cv2.resize(frame, (int(W*scale), int(H*scale)),
                         interpolation = cv2.INTER_CUBIC)
 
-def frames_to_time(frames):
+def frames_to_time(frames, FPS=25):
     segundos = frames//FPS
     tiempo = [str(segundos)]
     frames %= FPS

@@ -4,8 +4,8 @@ import cv2 as cv
 import pickle
 from scipy.spatial.distance import euclidean
 
-directorio = '/mnt/1950EF8830BF5793/PROYECTO/AmbContr/P4'
-frame = 2
+directorio = '/mnt/1950EF8830BF5793/PROYECTO/angulos/180g'
+frame = 51
 path_img_i = os.path.join(directorio, f'imgs/izq/frame_izq_{frame}.png')
 path_img_d = os.path.join(directorio, f'imgs/der/frame_der_{frame}.png')
 calib_data_path = os.path.join(directorio, 'calib/calibData.pk')
@@ -96,8 +96,9 @@ puntos_agregados = False
 tamano_cuadro = stereo_params.get('tamano_cuadro', 25)
 unidades='mm'
 
-cv.namedWindow('imagen')
-cv.setMouseCallback('imagen',mouse)
+nombre_ventana = f'cuadro {frame}'
+cv.namedWindow(nombre_ventana)
+cv.setMouseCallback(nombre_ventana,mouse)
 while True:
     temporal = img.copy()
 
@@ -135,7 +136,7 @@ while True:
             corregidos = cv.correctMatches(stereo_params['F'], p1_corr, p2_corr)
             p1_corr = corregidos[0][0]
             p2_corr = corregidos[1][0]
-            print(p1_corr.T.shape, p1_corr.T)
+            #print(p1_corr.T.shape, p1_corr.T)
             triangulacion = cv.convertPointsFromHomogeneous(cv.triangulatePoints(P1,
                                                                                  P2,
                                                                                  p1_corr.T,
@@ -155,13 +156,15 @@ while True:
                 puntos_corr_i.pop();puntos_corr_d.pop()
             if len(puntos3D)==2:
                 distancia = euclidean(*puntos3D)*tamano_cuadro
+                for p in puntos3D:
+                    print(f'La distancia al punto {p} es de {np.linalg.norm(p)*tamano_cuadro}{unidades}')
                 print(f'Distancia entre los puntos {puntos3D[0]} y {puntos3D[1]} es de '
                       f'{distancia}{unidades}')
 
         puntos=[]
         puntos_agregados=False
 
-    cv.imshow('imagen', temporal)
+    cv.imshow(nombre_ventana, temporal)
 
     key = cv.waitKey(50)
     if key==ord('q'):

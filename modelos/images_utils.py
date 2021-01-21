@@ -4,7 +4,9 @@ from skimage.io import imread
 from skimage.transform import resize
 from skimage.measure import regionprops_table
 from skimage.color import gray2rgb
+from skimage.draw import polygon2mask
 import numpy as np
+import json
 
 def obtener_codigos_clases(archivo):
     """	
@@ -76,7 +78,83 @@ def get_bboxes(f_path, shape):
     return bboxes
 
 
-def generar_regiones(data_dir, masks_disponibles, N, aleatorio=True,
+def generar_regiones(data_dir, N, mascaras_dir=None,aleatorio=True,
+                    res_min=(100,100), solo_horizontales=True,
+                    resize_shape=None,  padding=10, seed=None):
+    """
+    Genera imágenes que corresponden a regiones de segmentaciones en
+    imágenes. En una imagen puede existir más de un objeto deseado y
+    por lo tanto una región por cada uno de ellos. Esta función hace 
+    la búsqueda en las imágenes con  máscaras disponibles y devuelve
+    N regiones (imagen, mascara) válidas de resolución mínima especi-
+    ficada.
+    """
+
+    root = os.path.abspath(data_dir)
+    imgs_dir = os.path.join(root, 'fish','images')
+    if mascaras_dir is None:
+        mascaras_dir = os.path.join(root, 'masks_contours')
+
+    lista_imgs_paths = glob(os.path.join(imgs_dir, '*'))
+    ids_masks = [os.path.basename(m).split('.')[0]\
+                for m in glob(os.path.join(mascaras_dir, '*.txt'))]
+
+    if seed is not None: random.seed(seed)
+    if aleatorio: random.shuffle(lista_imgs_paths)
+
+    restantes = N
+    regiones = []
+    while restantes*len(lista_imgs_paths) > 0:
+        siguiente = lista_imgs_paths.pop()
+        img_id = os.path.basename(siguiente).split('.')[0]
+        if img_id not in ids_masks:
+            continue
+        img = imread(siguiente)
+        if len(img.shape)<3: #en caso de tener una imagen en grises
+            img = gray2rgb(img)
+        H,W = img.shape[:2]
+
+        with open(os.path.join(mascaras_dir, f'{img_id}.txt')) as f:
+            masks_data = json.load(f)
+        for mask_number in masks_data:
+            m_data = masks_data[mask_number]
+            x1, x2, y1, y2 = [int(p) for p in m_data['box']]
+            x_pts = [int(p) for p in m_data['x_points']]
+            y_pts = [int(p) for p in m_data['y_points']]
+
+            bmask = polygon2mask((H,W), np.array([y_pts, x_pts]).T).astype(np.uint8)
+
+            ##Se aplica el padding y se hace un ajuste
+            y1 = max(0, y1-padding)
+            y2 = min(H-1, y2+padding)
+            x1 = max(0, x1-padding)
+            x2 = min(W-1, x2+padding)
+            res_y = y2-y1
+            res_x = x2-x1
+
+            #Se revisa la resolución mínima de las regiones
+            if res_y<res_min[0] or res_x<res_min[1]:
+                continue
+            #Se revisa que sean horizontales
+            if solo_horizontales and res_y*1.3>res_x:
+                continue
+            reg_img = np.float32(img[y1:y2, x1:x2]/255)
+            reg_mask = np.float32(bmask[y1:y2, x1:x2])
+
+            if resize_shape is not None:
+                assert len(resize_shape)==2
+                reg_img = resize(reg_img, resize_shape)
+                reg_mask =resize(reg_mask,resize_shape)
+            
+            regiones.append([reg_img,  #region RGB
+                            reg_mask]) #region Mask
+            restantes-=1
+            if restantes == 0:
+                break
+    
+    return regiones 
+
+def generar_regiones_old(data_dir, masks_disponibles, N, aleatorio=True,
                     res_min=(100,100), solo_horizontales=True,
                     resize_shape=None,  padding=0, seed=None):
     """
@@ -144,4 +222,4 @@ def generar_regiones(data_dir, masks_disponibles, N, aleatorio=True,
             if restantes == 0:
                 break
     
-    return regiones 
+    return regiones

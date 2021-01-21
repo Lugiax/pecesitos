@@ -159,13 +159,13 @@ while cam_izq.isOpened() or cam_der.isOpened():
     img_comp = cv2.hconcat([frame_izq, frame_der])
     img_comp = adjustFrame(img_comp, scale = img_scale)
 
-    cv2.putText(img_comp, frames_to_time(frame_counter_izq),
+    cv2.putText(img_comp, frames_to_time(frame_counter_izq, FPS),
             org = (50,50),
             fontFace = cv2.FONT_HERSHEY_SIMPLEX,
             fontScale = 1,
             color = (0,0,0)
             )
-    cv2.putText(img_comp, frames_to_time(frame_counter_der),
+    cv2.putText(img_comp, frames_to_time(frame_counter_der, FPS),
         org = (img_comp.shape[1]-100,50),
         fontFace = cv2.FONT_HERSHEY_SIMPLEX,
         fontScale = 1,
