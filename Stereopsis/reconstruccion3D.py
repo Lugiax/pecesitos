@@ -4,13 +4,13 @@ import cv2 as cv
 import pickle
 from scipy.spatial.distance import euclidean
 
-directorio = '/mnt/1950EF8830BF5793/PROYECTO/angulos/180g'
-frame = 51
+directorio = '/media/carlos/Archivos/PROYECTO/angulos2/5'
+frame = 103
 path_img_i = os.path.join(directorio, f'imgs/izq/frame_izq_{frame}.png')
 path_img_d = os.path.join(directorio, f'imgs/der/frame_der_{frame}.png')
 calib_data_path = os.path.join(directorio, 'calib/calibData.pk')
 
-factor_escala = 2
+factor_escala = 1
 ventana = (100,100)
 
 ###-------------------------------------------------------------------------
@@ -55,6 +55,7 @@ def dibujar_puntos(img, pts1, pts2, factor_escala=factor_escala, x_offset=0,
         cv.circle(img, tuple(p2[::-1]), size, color, -1)
 
 ##------------------------------------------------------------------------------
+print(f'Análisis del cuadro {frame}')
 
 img1_o = cv.imread(path_img_i)
 img2_o = cv.imread(path_img_d)
@@ -72,12 +73,13 @@ R1, R2, P1, P2, Q, _, _ = cv.stereoRectify(stereo_params['cameraMatrix1'],
                                           img1_o.shape[:2][::-1],
                                           stereo_params['R'],
                                           stereo_params['T'],
-                                          flags=cv.CALIB_ZERO_DISPARITY)
+                                          flags=cv.CALIB_ZERO_DISPARITY,
+                                          alpha=0)
+
 
 
 img = cv.hconcat([img1_o, img2_o])
 resized_shape = tuple([int(n/factor_escala) for n in img.shape[:2]][::-1])
-print('Resized concat shape=', resized_shape)
 img = cv.resize(img, resized_shape)
 ancho_ventana = img.shape[1]
 
@@ -93,7 +95,7 @@ puntos3D = []
 puntos = []
 primer_punto = False
 puntos_agregados = False
-tamano_cuadro = stereo_params.get('tamano_cuadro', 25)
+tamano_cuadro = 24#stereo_params.get('tamano_cuadro', 25)
 unidades='mm'
 
 nombre_ventana = f'cuadro {frame}'
@@ -128,38 +130,54 @@ while True:
     if puntos_agregados:
         p1, p2 = puntos
         if p1[1]<ancho_ventana//2 and p2[1]>=ancho_ventana//2:
+            #Se escalan los puntos para hacer los cálculos
             p1 = [int(pi*factor_escala) for pi in p1]
             p2 = [int(p2[0]*factor_escala),
                              int((p2[1]-ancho_ventana//2)*factor_escala)]
+
+            ##Se corrigen los puntos deshaciendo la distorsión en ellos antes de hacer la triangulación
             p1_corr = np.array([[p1[::-1]]], dtype=np.float32)
             p2_corr = np.array([[p2[::-1]]], dtype=np.float32)
+
+            corregidos = cv.correctMatches(stereo_params['F'], p1_corr, p2_corr)
+            p1_corr =  cv.undistortPoints(corregidos[0], stereo_params['cameraMatrix1'], stereo_params['distCoeffs1'],
+                                          None, R1, P1)[0]
+            p2_corr =  cv.undistortPoints(corregidos[1], stereo_params['cameraMatrix2'], stereo_params['distCoeffs2'],
+                                          None, R2, P2)[0]
+                                          
+            """
+            p1_corr =  cv.undistortPoints(p1_corr, stereo_params['cameraMatrix1'], stereo_params['distCoeffs1'],
+                                          None, R1, P1)
+            p2_corr =  cv.undistortPoints(p2_corr, stereo_params['cameraMatrix2'], stereo_params['distCoeffs2'],
+                                          None, R2, P2)
             corregidos = cv.correctMatches(stereo_params['F'], p1_corr, p2_corr)
             p1_corr = corregidos[0][0]
             p2_corr = corregidos[1][0]
-            #print(p1_corr.T.shape, p1_corr.T)
+            """
+            #Se triangulan los puntos
             triangulacion = cv.convertPointsFromHomogeneous(cv.triangulatePoints(P1,
                                                                                  P2,
                                                                                  p1_corr.T,
                                                                                  p2_corr.T).T
                                                             )
+            #Agregamos los puntos a sus listas correspondientes
             puntos3D.insert(0, triangulacion[0][0])
-
             puntos_i.insert(0, p1)
             puntos_d.insert(0, p2)
-            puntos_corr_i.insert(0, p1_corr[0][::-1])
-            puntos_corr_d.insert(0, p2_corr[0][::-1])
-            print(f'Se agregan los puntos {puntos_i[-1]} y {puntos_d[-1]};'
-                  f' corregidos {puntos_corr_i[-1]} y {puntos_corr_d[-1]};'
-                  f' 3D {puntos3D[-1]}')
+            puntos_corr_i.insert(0, corregidos[0][0][0][::-1])
+            puntos_corr_d.insert(0, corregidos[1][0][0][::-1])
+            print(f'Se agregan los puntos {puntos_i[0]} y {puntos_d[0]};'
+                  f' corregidos {puntos_corr_i[0]} y {puntos_corr_d[0]};'
+                  f' 3D {puntos3D[0]}')
             if len(puntos3D)>2:
                 puntos3D.pop();puntos_i.pop();puntos_d.pop()
                 puntos_corr_i.pop();puntos_corr_d.pop()
             if len(puntos3D)==2:
                 distancia = euclidean(*puntos3D)*tamano_cuadro
                 for p in puntos3D:
-                    print(f'La distancia al punto {p} es de {np.linalg.norm(p)*tamano_cuadro}{unidades}')
+                    print(f'La distancia al punto {p} es de {p[2]*tamano_cuadro:.2f}{unidades}')
                 print(f'Distancia entre los puntos {puntos3D[0]} y {puntos3D[1]} es de '
-                      f'{distancia}{unidades}')
+                      f'{distancia:.2f}{unidades}\n')
 
         puntos=[]
         puntos_agregados=False
@@ -169,5 +187,14 @@ while True:
     key = cv.waitKey(50)
     if key==ord('q'):
         break
+    elif key==ord('d'):
+        puntos_i = []
+        puntos_d = []
+        puntos_corr_i = []
+        puntos_corr_d = []
+        puntos3D = []
+        puntos = []
+        primer_punto = False
+        puntos_agregados = False
 
 cv.destroyAllWindows()
