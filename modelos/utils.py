@@ -69,10 +69,12 @@ def graficar_perdidas(logs_path, unicos=None, figsize=(10,5), n_mejores=5, n_peo
 
 
 if __name__=='__main__':
+    import os
+    dir = '/home/carlos/Documentos/Codes/pecesitos/corridas/NCA_900_100000/'
     #mostrar_animacion('../corridas/NCA90/res_imgs/70')
-    graficar_perdidas('../corridas/NCA90/log.csv', n_mejores=5, title='Mejores')
-    for n in[4, 45,25,21,70]:
-        mostrar_animacion(f'../corridas/NCA90/res_imgs/{n}')
-    graficar_perdidas('../corridas/NCA90/log.csv', n_peores=5, title='Peores')
-    for n in[24,12,33,48,57]:
-        mostrar_animacion(f'../corridas/NCA90/res_imgs/{n}')
+    graficar_perdidas(os.path.join(dir, 'log.csv'), n_mejores=5, title='Mejores')
+    for n in[]:
+        mostrar_animacion(os.path.join(dir, f'/res_imgs/{n}'))
+    graficar_perdidas(os.path.join(dir, 'log.csv'), n_peores=5, title='Peores')
+    for n in[]:
+        mostrar_animacion(os.path.join(dir, f'/res_imgs/{n}'))

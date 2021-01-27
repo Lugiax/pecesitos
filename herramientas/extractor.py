@@ -4,7 +4,7 @@ from datetime import date
 import os
 import time
 from glob import glob
-from general import frames_to_time, adjustFrame, obtener_frame
+from general import frames_to_time, adjustFrame, obtener_frame, Grabador
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -19,6 +19,12 @@ parser.add_argument('--save_dir', type=str,
                     default='')
 parser.add_argument('--frame0', type=str,
                     help='Cuadro de inicio de los videos, puede ser una expresión.', default='0')
+parser.add_argument('--max_frames', type=str,
+                    help='Número de cuadros a grabar.', default='0')                
+parser.add_argument('--no_mostrar', action='store_true',
+                    help='Bandera para no mostrar las ventanas')
+parser.add_argument('--grabar', action='store_true',
+                    help='Bandera para grabar los resultados')
 
 args = parser.parse_args()
 
@@ -41,6 +47,7 @@ img_scale = 0.4
 show = True
 frame0 = max(abs(frames_offset_der-frames_offset_izq),
             int(eval(args.frame0)))
+#grabar = args.grabar
 
 #---------------------------------------------------------------------------------------
 
@@ -71,16 +78,23 @@ imgpoints = [] # 2d points in image plane.
 ## Comienza la captura del video
 cam_izq = cv2.VideoCapture(video_path_izq)
 cam_der = cv2.VideoCapture(video_path_der)
-#error_frames_counter = 0
+
+
 saved_frames_counter = 1
-#frame_counter = 0
 frame_counter_der = 0
 frame_counter_izq = 0
+frame_counter = 0
 pausa = True
 save = False
 
 frame_izq, frame_counter_izq = obtener_frame(cam_izq)
 frame_der, frame_counter_der = obtener_frame(cam_der)
+
+if args.grabar:
+    print('Inicio de la grabación')
+    grabador_i = Grabador(os.path.join(dir_to_save, 'grabación_izq.mp4'),FPS)
+    grabador_d = Grabador(os.path.join(dir_to_save, 'grabación_der.mp4'),FPS)
+    pausa = False
 
 frames_offset_der += frame0
 frames_offset_izq += frame0
@@ -152,32 +166,38 @@ while cam_izq.isOpened() or cam_der.isOpened():
         frame_der, error_frames = obtener_frame(cam_der)
         frame_counter_der += error_frames
 
+    if args.grabar:
+        grabador_i.agregar(frame_izq)
+        grabador_d.agregar(frame_der)
+        frame_counter += 1
+        if frame_counter > eval(args.max_frames):
+            break
 
+    if not args.no_mostrar:
+        time.sleep(video_delay)
+        
+        img_comp = cv2.hconcat([frame_izq, frame_der])
+        img_comp = adjustFrame(img_comp, scale = img_scale)
 
-    time.sleep(video_delay)
-    
-    img_comp = cv2.hconcat([frame_izq, frame_der])
-    img_comp = adjustFrame(img_comp, scale = img_scale)
-
-    cv2.putText(img_comp, frames_to_time(frame_counter_izq, FPS),
-            org = (50,50),
+        cv2.putText(img_comp, frames_to_time(frame_counter_izq, FPS),
+                org = (50,50),
+                fontFace = cv2.FONT_HERSHEY_SIMPLEX,
+                fontScale = 1,
+                color = (0,0,0)
+                )
+        cv2.putText(img_comp, frames_to_time(frame_counter_der, FPS),
+            org = (img_comp.shape[1]-100,50),
             fontFace = cv2.FONT_HERSHEY_SIMPLEX,
             fontScale = 1,
             color = (0,0,0)
             )
-    cv2.putText(img_comp, frames_to_time(frame_counter_der, FPS),
-        org = (img_comp.shape[1]-100,50),
-        fontFace = cv2.FONT_HERSHEY_SIMPLEX,
-        fontScale = 1,
-        color = (0,0,0)
-        )
-    cv2.putText(img_comp, str(abs(frame_counter_der-frame_counter_izq)),
-        org = (img_comp.shape[1]//2+10,50),
-        fontFace = cv2.FONT_HERSHEY_SIMPLEX,
-        fontScale = 1,
-        color = (0,0,255)
-        )
-    cv2.imshow('Frame', img_comp)
+        cv2.putText(img_comp, str(abs(frame_counter_der-frame_counter_izq)),
+            org = (img_comp.shape[1]//2+10,50),
+            fontFace = cv2.FONT_HERSHEY_SIMPLEX,
+            fontScale = 1,
+            color = (0,0,255)
+            )
+        cv2.imshow('Frame', img_comp)
 
     if save:
         saveFrame(frame_izq, os.path.join(imgs_dir, 'izq'),
@@ -189,4 +209,8 @@ while cam_izq.isOpened() or cam_der.isOpened():
     
 cam_izq.release()
 cam_der.release()
+if args.grabar:
+    grabador_d.terminar()
+    grabador_i.terminar()
+    print(f'Grabación terminada. Se almacenaron {frame_counter} cuadros, equivalentes a {frame_counter/FPS:.2f} segundos.')
 cv2.destroyAllWindows()

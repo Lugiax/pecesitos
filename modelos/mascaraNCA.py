@@ -155,7 +155,7 @@ class NCA(tf.keras.Model):
             x , perdida = self.paso_entrenamiento(x0, imagen, mascara)
             perdidas_log[id_img].append(float(perdida))
 
-            if e%50==0:
+            if e%1==0:
                 ids = f_perdida(x, mascara).numpy().argsort()
                 mejor = x[ids[0]]
                 peor = x[ids[-1]]
