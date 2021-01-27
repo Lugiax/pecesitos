@@ -4,13 +4,13 @@ import cv2 as cv
 import pickle
 from scipy.spatial.distance import euclidean
 
-directorio = '/media/carlos/Archivos/PROYECTO/angulos2/5'
-frame = 103
+directorio = '/media/carlos/Archivos/PROYECTO/angulos2/2'
+frame = 75
 path_img_i = os.path.join(directorio, f'imgs/izq/frame_izq_{frame}.png')
 path_img_d = os.path.join(directorio, f'imgs/der/frame_der_{frame}.png')
 calib_data_path = os.path.join(directorio, 'calib/calibData.pk')
 
-factor_escala = 1
+factor_escala = 2.5
 ventana = (100,100)
 
 ###-------------------------------------------------------------------------
@@ -45,12 +45,12 @@ def roi_interna(p, ventana, shape):
     return(x0,y0,x1,y1)
 
 def dibujar_puntos(img, pts1, pts2, factor_escala=factor_escala, x_offset=0,
-                    size=2, color = (0, 0, 250)):
+                    size=5, color = (0, 0, 250)):
     pts1 = [[int(pi/factor_escala) for pi in pt] for pt in pts1]
     pts2 = [[int(pt[0]/factor_escala),
                      int(pt[1]/factor_escala)+x_offset] for pt in pts2]
 
-    for p1, p2 in zip(pts1, pts2):
+    for p1, p2 in zip(pts2, pts1):
         cv.circle(img, tuple(p1[::-1]), size, color, -1)
         cv.circle(img, tuple(p2[::-1]), size, color, -1)
 
