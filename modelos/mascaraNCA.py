@@ -215,23 +215,20 @@ class NCA(tf.keras.Model):
             normalizar=True
         else:
             img = img0.copy()
-        #print(f'Vals de img para mascara {img.min()} - {img.max()}')
-        img = img0[None, ...]
-        img = tf.image.resize(img.astype(np.float32), (dim,dim), antialias=True)
-        mask =  generar_semillas(batch, dim, canales)
-        #print('Iniciando inferencia')
-        for _ in tf.range(iteraciones):
-            mask = self(mask, img[0])
-        #res_mask = tf.image.resize(mask[..., :1], img0.shape[:2])
-        #print(f'Vals de mascara antes de devolver {mask.numpy().min()}-{mask.numpy().max()}')
-        #res_mask = (tf.keras.utils.normalize(res_mask, order=1)+1)/2
-        #print(f'Despues {res_mask.numpy().min()}-{res_mask.numpy().max()}')
 
+        img = resize(img, (dim,dim), anti_aliasing=True).astype(np.float32)
+        mask =  generar_semillas(batch, dim, canales)
+
+        for _ in tf.range(iteraciones):
+            mask = self(mask, img)
+
+        mask = tf.image.resize(mask[..., :1],
+                                   img0.shape[:2],
+                                   method='bicubic')
         if not_bin:
-            return mask[0,..., 0].numpy()
+            return mask[0, ..., 0].numpy()
         else:
-            res_mask = obtener_vivos(mask, umbral)[0,...,0].numpy()
-            return resize(res_mask, img0.shape[:2])>0
+            return obtener_vivos(mask, umbral)[0,...,0].numpy() 
 
 
 
