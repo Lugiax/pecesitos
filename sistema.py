@@ -3,8 +3,10 @@ import os, sys
 import argparse
 import time
 import numpy as np
+import tensorflow as tf
 from glob import glob
 from PIL import Image
+from skimage.morphology import binary_opening, diamond
 
 
 from herramientas.general import adjustFrame, obtener_frame
@@ -58,23 +60,24 @@ def dibujar_rois(img, rois, conf_min=0.5):
             img = cv2.putText(img, f'{conf:.4}', (x1,y1), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0),3)
     return img
 
-def dibujar_masks(img, rois, conf_min=0.5):
+def dibujar_masks(img, rois, conf_min=0.5, umbral_mask=0.3):
+    canvas = img.copy()
     for x1, y1, x2, y2, conf in rois:
         if conf>conf_min:
             region = img[y1:y2, x1:x2]
-            print(f'Vals_reg {region.min()} - {region.max()}, {region.shape}')
-            mascara = nca.generar(region).astype(region.dtype)
-            #mascara_bgr = np.zeros((mascara.shape[0], mascara.shape[1], 3), dtype = region.dtype)
-            print(f'Mascara {mascara.min()} - {mascara.max()}, {mascara.shape}, {mascara.dtype}')
+            mascara = nca.generar(region, not_bin=False, umbral=0.3, get_original_size=False)#.astype(region.dtype)
+            mascara = tf.image.resize(binary_opening(mascara, diamond(3))[None, ..., None].astype(region.dtype),
+                                      (y2-y1, x2-x1),
+                                      method='bicubic')[0,...,0].numpy()
+            mascara = np.clip(mascara, 0, 1)
             mascara_bgr = cv2.cvtColor(mascara, cv2.COLOR_GRAY2BGR)
             mascara_bgr[..., 0] *= 96
             mascara_bgr[..., 1] *= 240
             mascara_bgr[..., 2] *= 91
-            img = cv2.rectangle(img, (x1,y1), (x2,y2), (255,0,0))
-            img = cv2.putText(img, f'{conf:.4}', (x1,y1), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0),3)
-            img[y1:y2, x1:x2, :] = (img[y1:y2, x1:x2]*0.3+mascara_bgr*0.7).astype(img.dtype) #img[y1:y2, x1:x2] * 0.3 +  mascara_bgr*0.7
-
-    return img
+            canvas = cv2.rectangle(canvas, (x1,y1), (x2,y2), (255,0,0))
+            canvas = cv2.putText(canvas, f'{conf:.4}', (x1,y1), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0),3)
+            canvas[y1:y2, x1:x2, :] = (canvas[y1:y2, x1:x2]*0.3+mascara_bgr*0.7).astype(canvas.dtype)
+    return canvas
 ###-----------------------------------------------------------------------------------------
 
 dir_videos = os.path.abspath(args.data_dir)
