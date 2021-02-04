@@ -55,8 +55,8 @@ def guardar_log(log, fname):
 class NCA(tf.keras.Model):
     def __init__(self, canales=14, dim=100):
         super().__init__()
-        self.iter_min = 1
-        self.iter_max = 5
+        self.iter_min = 50
+        self.iter_max = 90
         self.dim = dim
         self.lr=2e-3
         self.canales = canales
@@ -122,7 +122,7 @@ class NCA(tf.keras.Model):
             dim = self.dim
         else:
             self.dim = dim
-        #masks_data = mascaras_disponibles(DATA_DIR, umbral_calidad=calidad_imgs)
+
         regiones = generar_regiones(DATA_DIR, n_imgs,
                                     solo_horizontales=True,
                                     resize_shape=(dim,dim), padding=padding,
@@ -133,8 +133,6 @@ class NCA(tf.keras.Model):
                    tf.constant(mask, dtype=tf.float32),
                    generar_semillas(batch, CANALES=self.canales, DIM=dim, tipo='')
                    ] for i, (img, mask) in enumerate(regiones)}
-
-        #datos_ent = {i:datos[i] for i in list(datos.keys())[:int(n_imgs*prop_ent_test)]}
 
         RUN_DIR = os.path.join(save_dir, run_name)
         if not os.path.isdir(RUN_DIR):
@@ -194,9 +192,9 @@ class NCA(tf.keras.Model):
             plt.savefig(os.path.join(RUN_DIR, 'res_imgs',
                                         str(id_img),'perdida.png'))
         
-            #if e%int(0.2*epocas) == 0:
-            #    self.save_weights(os.path.join(RUN_DIR, 'weights'), save_format='tf')
-            #    guardar_log(perdidas_log, os.path.join(RUN_DIR, 'log.csv'))
+            if e%int(0.2*epocas) == 0:
+                self.save_weights(os.path.join(RUN_DIR, 'weights'), save_format='tf')
+                guardar_log(perdidas_log, os.path.join(RUN_DIR, 'log.csv'))
 
             print(f'\t Perdida: {perdida}')
 
