@@ -2,12 +2,8 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import os, sys, cv2
+import os, sys
 from skimage.transform import resize
-if __name__=='__main__':
-    from ..herramientas.general import Grabador
-else:
-    from herramientas.general import Grabador
 
 file_dir = os.path.dirname(__file__)
 sys.path.append(file_dir)
@@ -224,8 +220,7 @@ class NCA(tf.keras.Model):
         self.load_weights(pesos_path)
 
     def generar(self, img0, batch=1, iteraciones=None, canales=None, dim=None,
-                weights_path=None, not_bin=False, umbral=0.1, original_size=True,
-                nombre_video=''):
+                weights_path=None, not_bin=False, umbral=0.1):
         """
         imgs puede ser un arreglo o una lista de imágenes
         """
@@ -243,26 +238,16 @@ class NCA(tf.keras.Model):
             normalizar=True
         else:
             img = img0.copy()
-        if nombre_video!='':
-            grabador = Grabador(nombre_video, fps=5)
 
         img = resize(img, (dim,dim), anti_aliasing=True).astype(np.float32)
         mask =  generar_semillas(batch, dim, canales)
 
         for _ in tf.range(iteraciones):
             mask = self(mask, img)
-            if nombre_video!='':
-                frame = (np.clip(mask[0,...,0].numpy(), 0,1)*255).astype(np.uint8)
-                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-                grabador.agregar(frame)
 
-        if original_size:
-            mask = tf.image.resize(mask[..., :1],
-                                    img0.shape[:2],
-                                    method='bicubic')
-        if nombre_video!='':
-            grabador.terminar() 
-        
+        mask = tf.image.resize(mask[..., :1],
+                                   img0.shape[:2],
+                                   method='bicubic')
         if not_bin:
             return np.clip(mask[0, ..., 0].numpy(), 0, 1)
         else:
