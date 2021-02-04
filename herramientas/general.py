@@ -53,9 +53,7 @@ class Grabador:
             sig, _ = obtener_frame(cam)
             n_frames += 1
             #print(n_frames, cam.isOpened(), sig.shape)
-        
         self.escritor.release()
-
 
     def agregar(self, frame):
         #agregar un frame a la secuencia
