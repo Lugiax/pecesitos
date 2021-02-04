@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import os, sys
+import os, sys, cv2
 from skimage.transform import resize
 
 file_dir = os.path.dirname(__file__)
@@ -55,8 +55,8 @@ def guardar_log(log, fname):
 class NCA(tf.keras.Model):
     def __init__(self, canales=14, dim=100):
         super().__init__()
-        self.iter_min = 50
-        self.iter_max = 90
+        self.iter_min = 1
+        self.iter_max = 5
         self.dim = dim
         self.lr=2e-3
         self.canales = canales
@@ -146,7 +146,7 @@ class NCA(tf.keras.Model):
         perdidas_log = {i:[] for i in range(n_imgs)}
 
         for e in range (epocas+1):
-            id_img = random.randint(0, int(n_imgs*prop_ent_test))
+            id_img = random.randint(0, int(n_imgs*prop_ent_test)-1)
             print(f'Paso {e+1}, imagen {id_img}')
 
             imagen, mascara, x0 = datos[id_img]
@@ -164,7 +164,7 @@ class NCA(tf.keras.Model):
             peor = x[ids[-1]]
 
             fig, axes = plt.subplots(2, 4, figsize=(20,8))
-            imgs_to_plot = [x[i, ..., 0] for i in ids]
+            imgs_to_plot = [imagen]+[x[i, ..., 0] for i in ids]
             #imgs_to_plot = [imagen, mascara, mejor[..., 0], peor[..., 0]]
             #titulos = ['Original', 'Original', 'Mejor', 'Peor']
             for ax, img in zip(axes.ravel(), imgs_to_plot):#, titulos):
@@ -179,7 +179,7 @@ class NCA(tf.keras.Model):
 
             #Se actualiza el conjunto de estados
             x0 = x.numpy()
-            x0[ids[-1]] = generar_semillas(1, CANALES=self.canales, DIM=dim, tipo='')[0]
+            x0[ids[-4:]] = generar_semillas(4, CANALES=self.canales, DIM=dim, tipo='')
             datos[id_img][2] = x0
 
             fig, ax = plt.subplots()
@@ -203,13 +203,17 @@ class NCA(tf.keras.Model):
         print(f'Fin del entrenamiento. Pesos guardados en {os.path.join(RUN_DIR,"weights")}')
 
         ##Imagenes de prueba
-        log_errores=[]
+        log_errores={}
         for i in list(datos.keys())[int(n_imgs*prop_ent_test):]:
             img, mask, _ = datos[i]
             mask_gen = tf.constant(self.generar(img.numpy(), not_bin=True)[None, ..., None], dtype=tf.float32)
             error = tf.reduce_mean(f_perdida(mask_gen, mask)).numpy()
-            log_errores.append(error)
-        print(f'El error promedio en el conjunto de prueba fue de {sum(log_errores)/len(log_errores)}')
+            try:
+                log_errores[i].append(error)
+            except:
+                log_errores[i]=[error]
+        guardar_log(log_errores, os.path.join(RUN_DIR, 'log_test.csv'))
+        #print(f'El error promedio en el conjunto de prueba fue de {sum(log_errores)/len(log_errores)}')
 
 
 
@@ -218,10 +222,7 @@ class NCA(tf.keras.Model):
         self.load_weights(pesos_path)
 
     def generar(self, img0, batch=1, iteraciones=None, canales=None, dim=None,
-                weights_path=None, not_bin=False, umbral=0.1):
-        """
-        imgs puede ser un arreglo o una lista de imágenes
-        """
+                weights_path=None, not_bin=False, umbral=0.1, guardar_imgs=''):
         if iteraciones is None:
             iteraciones = tf.random.uniform([], self.iter_min, self.iter_max, tf.int32)
         if canales is None:
@@ -240,16 +241,24 @@ class NCA(tf.keras.Model):
         img = resize(img, (dim,dim), anti_aliasing=True).astype(np.float32)
         mask =  generar_semillas(batch, dim, canales)
 
-        for _ in tf.range(iteraciones):
+        for i in tf.range(iteraciones):
             mask = self(mask, img)
+            if guardar_imgs!='':
+                if not os.path.isdir(guardar_imgs):
+                    os.makedirs(guardar_imgs)
+                frame = np.clip(mask[0,...,0].numpy(), 0, 1)
+                plt.imshow(frame, cmap='gray')
+                plt.savefig(os.path.join(guardar_imgs, f'frame{i:0>2}'))
+
 
         mask = tf.image.resize(mask[..., :1],
                                    img0.shape[:2],
                                    method='bicubic')
+
         if not_bin:
             return np.clip(mask[0, ..., 0].numpy(), 0, 1)
         else:
-            return obtener_vivos(mask, umbral)[0,...,0].numpy() 
+            return obtener_vivos(mask, umbral)[0,...,0].numpy()
 
 
 
@@ -287,6 +296,9 @@ if __name__=='__main__':
     parser.add_argument('--save_dir', type=str,
                         help='Directorio para guardar los resultados',
                         default='.')
+    parser.add_argument('--guardar_imgs', type=str,
+                        help='Directorio para guardar las imagenes de generación de la máscara',
+                        default='')
     parser.add_argument('--run_name', type=str,
                         help='Nombre de la corrida',
                         default='corr1')
@@ -314,5 +326,5 @@ if __name__=='__main__':
         for img_path in imgs_list:
             im_name = os.path.basename(img_path).split('.')[0]
             img = Image.open(img)
-            res = Image.fromarray(automata.generar(img)[0])
+            res = Image.fromarray(automata.generar(img, dim=args.dim, guardar_imgs=args.guardar_imgs)[0])
             res.save(os.path.join(args.save_dir, im_name+'.png'))

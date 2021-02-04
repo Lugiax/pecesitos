@@ -1,5 +1,7 @@
+#%utf8
 import cv2
 import os
+from glob import glob
 
 def obtener_frame(camara, frame=None, ret=False):
     max_frames_error = 50
@@ -9,7 +11,7 @@ def obtener_frame(camara, frame=None, ret=False):
             error_frames_counter+=1
             ret, frame = camara.read()
         elif error_frames_counter==max_frames_error:
-            print('LÍMITE DE FRAMES CON ERROR ALCANZADO. SALIENDO.')
+            print('LIMITE DE FRAMES CON ERROR ALCANZADO. SALIENDO.')
             break
     return frame, error_frames_counter
 
@@ -54,6 +56,14 @@ class Grabador:
             n_frames += 1
             #print(n_frames, cam.isOpened(), sig.shape)
         self.escritor.release()
+    
+    def desde_carpeta(self, carpeta):
+        formatos = ['jpg', 'png']
+        imgs = sorted([f for f in glob(os.path.join(carpeta,'*.*')) if f.split('.')[1] in formatos])
+        for img_p in imgs:
+            self.agregar(cv2.imread(img_p))
+        self.escritor.release()
+
 
     def agregar(self, frame):
         #agregar un frame a la secuencia
@@ -67,6 +77,7 @@ class Grabador:
         self.escritor.release()
 
 if __name__=='__main__':
-    g = Grabador('/media/carlos/Archivos/PROYECTO/angulos2/1/grabacion.mp4')
-    g.desde_archivo(('/media/carlos/Archivos/PROYECTO/angulos2/1/izq1.MP4'))
+    g = Grabador('/home/carlos/Documentos/pecesitos/grabacion_prueba.mp4', fps=5)
+    g.desde_carpeta('/home/carlos/Imágenes/video')
+    #g.desde_archivo(('/media/carlos/Archivos/PROYECTO/angulos2/1/izq1.MP4'))
 
