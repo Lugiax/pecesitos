@@ -223,3 +223,7 @@ def generar_regiones_old(data_dir, masks_disponibles, N, aleatorio=True,
                 break
     
     return regiones
+
+
+if __name__=='__main__':
+    print(len(generar_regiones('../datos', 5)))

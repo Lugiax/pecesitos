@@ -55,8 +55,8 @@ def guardar_log(log, fname):
 class NCA(tf.keras.Model):
     def __init__(self, canales=14, dim=100):
         super().__init__()
-        self.iter_min = 50
-        self.iter_max = 90
+        self.iter_min = 1
+        self.iter_max = 5
         self.dim = dim
         self.lr=2e-3
         self.canales = canales
@@ -116,21 +116,25 @@ class NCA(tf.keras.Model):
         return x, perdida
 
     def entrenar(self, DATA_DIR, epocas=10000, batch=8, n_imgs=100, calidad_imgs=0.9, dim=None, padding=10,
-                seed=None, save_dir='./modelo', run_name='run1', plot=False):
+                seed=None, save_dir='./modelo', run_name='run1', plot=False, prop_ent_test=0.8):
         print('Generando las regiones')
         if dim is None:
             dim = self.dim
         else:
             self.dim = dim
-        masks_data = mascaras_disponibles(DATA_DIR, umbral_calidad=calidad_imgs)
-        regiones = generar_regiones(DATA_DIR, masks_data, n_imgs,
+        #masks_data = mascaras_disponibles(DATA_DIR, umbral_calidad=calidad_imgs)
+        regiones = generar_regiones(DATA_DIR, n_imgs,
                                     solo_horizontales=True,
                                     resize_shape=(dim,dim), padding=padding,
                                     seed=seed)
         assert len(regiones)==n_imgs, f'Solo hay {len(regiones)} imágenes disponibles'
 
         datos = {i:[tf.constant(img, dtype=tf.float32),
-                   tf.constant(mask, dtype=tf.float32)] for i, (img, mask) in enumerate(regiones)}
+                   tf.constant(mask, dtype=tf.float32),
+                   generar_semillas(batch, CANALES=self.canales, DIM=dim, tipo='')
+                   ] for i, (img, mask) in enumerate(regiones)}
+
+        #datos_ent = {i:datos[i] for i in list(datos.keys())[:int(n_imgs*prop_ent_test)]}
 
         RUN_DIR = os.path.join(save_dir, run_name)
         if not os.path.isdir(RUN_DIR):
@@ -144,54 +148,73 @@ class NCA(tf.keras.Model):
         perdidas_log = {i:[] for i in range(n_imgs)}
 
         for e in range (epocas+1):
-            id_img = random.randint(0, n_imgs-1)
+            id_img = random.randint(0, int(n_imgs*prop_ent_test))
             print(f'Paso {e+1}, imagen {id_img}')
 
-            imagen, mascara = datos[id_img]
+            imagen, mascara, x0 = datos[id_img]
             ##Tal vez sería bueno hacer que las semillas se parecieran más a lo 
             ##del artículo. Aquí se generan nuevas semillas en cada época
-            x0 = generar_semillas(batch, CANALES=self.canales, DIM=dim, tipo='')
+            #x0 = generar_semillas(batch, CANALES=self.canales, DIM=dim, tipo='')
+
 
             x , perdida = self.paso_entrenamiento(x0, imagen, mascara)
             perdidas_log[id_img].append(float(perdida))
 
-            if e%1==0:
-                ids = f_perdida(x, mascara).numpy().argsort()
-                mejor = x[ids[0]]
-                peor = x[ids[-1]]
+            #if e%1==0:
+            ids = f_perdida(x, mascara).numpy().argsort()
+            mejor = x[ids[0]]
+            peor = x[ids[-1]]
 
-                fig, axes = plt.subplots(1, 4, figsize=(20,8))
-                imgs_to_plot = [imagen, mascara, mejor[..., 0], peor[..., 0]]
-                titulos = ['Original', 'Original', 'Mejor', 'Peor']
-                for ax, img, titulo in zip(axes, imgs_to_plot, titulos):
-                    ax.imshow(img)
-                    ax.set_title(titulo)
-                    ax.axis('off')
-                if plot: plt.show()
+            fig, axes = plt.subplots(2, 4, figsize=(20,8))
+            imgs_to_plot = [x[i, ..., 0] for i in ids]
+            #imgs_to_plot = [imagen, mascara, mejor[..., 0], peor[..., 0]]
+            #titulos = ['Original', 'Original', 'Mejor', 'Peor']
+            for ax, img in zip(axes.ravel(), imgs_to_plot):#, titulos):
+                ax.imshow(img)
+                #ax.set_title(titulo)
+                ax.axis('off')
+            #if plot: plt.show()
 
-                im_name = f'epoca-{e:0>6}.png'
-                plt.savefig(os.path.join(RUN_DIR, 'res_imgs',
-                                         str(id_img), im_name))
+            im_name = f'epoca-{e:0>6}.png'
+            plt.savefig(os.path.join(RUN_DIR, 'res_imgs',
+                                        str(id_img), im_name))
 
-                fig, ax = plt.subplots()
-                ax.plot(perdidas_log[id_img])
-                ax.set_title('Evolución de la\nfunción de pérdida')
-                ax.set_xlabel('Época')
-                ax.set_ylabel('Error')
-                if plot: plt.show()
+            #Se actualiza el conjunto de estados
+            x0 = x.numpy()
+            x0[ids[-1]] = generar_semillas(1, CANALES=self.canales, DIM=dim, tipo='')[0]
+            datos[id_img][2] = x0
 
-                plt.savefig(os.path.join(RUN_DIR, 'res_imgs',
-                                         str(id_img),'perdida.png'))
-            
-            if e%int(0.2*epocas) == 0:
-                self.save_weights(os.path.join(RUN_DIR, 'weights'), save_format='tf')
-                guardar_log(perdidas_log, os.path.join(RUN_DIR, 'log.csv'))
+            fig, ax = plt.subplots()
+            ax.plot(perdidas_log[id_img])
+            ax.set_title('Evolución de la\nfunción de pérdida')
+            ax.set_xlabel('Época')
+            ax.set_ylabel('Error')
+            #if plot: plt.show()
+
+            plt.savefig(os.path.join(RUN_DIR, 'res_imgs',
+                                        str(id_img),'perdida.png'))
+        
+            #if e%int(0.2*epocas) == 0:
+            #    self.save_weights(os.path.join(RUN_DIR, 'weights'), save_format='tf')
+            #    guardar_log(perdidas_log, os.path.join(RUN_DIR, 'log.csv'))
 
             print(f'\t Perdida: {perdida}')
 
         self.save_weights(os.path.join(RUN_DIR, 'weights'), save_format='tf')
         guardar_log(perdidas_log, os.path.join(RUN_DIR, 'log.csv'))
         print(f'Fin del entrenamiento. Pesos guardados en {os.path.join(RUN_DIR,"weights")}')
+
+        ##Imagenes de prueba
+        log_errores=[]
+        for i in list(datos.keys())[int(n_imgs*prop_ent_test):]:
+            img, mask, _ = datos[i]
+            mask_gen = tf.constant(self.generar(img.numpy(), not_bin=True)[None, ..., None], dtype=tf.float32)
+            error = tf.reduce_mean(f_perdida(mask_gen, mask)).numpy()
+            log_errores.append(error)
+        print(f'El error promedio en el conjunto de prueba fue de {sum(log_errores)/len(log_errores)}')
+
+
+
 
     def cargar_pesos(self, pesos_path):
         self.load_weights(pesos_path)
@@ -226,7 +249,7 @@ class NCA(tf.keras.Model):
                                    img0.shape[:2],
                                    method='bicubic')
         if not_bin:
-            return mask[0, ..., 0].numpy()
+            return np.clip(mask[0, ..., 0].numpy(), 0, 1)
         else:
             return obtener_vivos(mask, umbral)[0,...,0].numpy() 
 
