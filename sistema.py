@@ -2,17 +2,19 @@ import cv2
 import os, sys
 import argparse
 import time
+import pickle
 import numpy as np
 import tensorflow as tf
 from glob import glob
 from PIL import Image
 from skimage.morphology import binary_opening, diamond
+from scipy.spatial.distance import euclidean
 
 
-from herramientas.general import adjustFrame, obtener_frame
+from herramientas.general import adjustFrame, obtener_frame, emparejar_rois
 #sys.path.append(os.path.abspath('modelos'))
 #print('path desde app principal', sys.path)
-from modelos import localizador, mascaraNCA
+from modelos import localizador#, mascaraNCA
 
 
 parser = argparse.ArgumentParser()
@@ -34,10 +36,13 @@ parser.add_argument('--frame_max', type=str,
                     default='0')
 parser.add_argument('--pesos_loc', type=str,
                     help='Ruta a los pesos del localizador',
-                    default='deteccion/pesos/yolo_medium.pt')
+                    default='pesos/yolo/best_large.pt')
 parser.add_argument('--pesos_nca', type=str,
                     help='Ruta a los pesos del localizador',
-                    default='corridas/NCA90/weights')
+                    default='pesos/nca/weights')
+parser.add_argument('--calib_dir', type=str,
+                    help='Ruta al archivo *.pk de calibración',
+                    default='calib/calibData.pk')
 parser.add_argument('--no_mostrar', action='store_true',
                     help='Bandera para no mostrar los resultados, se almacenarán en la carpeta correspondiente')
 
@@ -47,19 +52,25 @@ args = parser.parse_args()
 print('Se inicia el localizador... ', end='')
 loc = localizador.Localizador(os.path.abspath(args.pesos_loc))
 print('Iniciado :D')
-print('Se inicia el generador de máscaras... ', end='')
-nca = mascaraNCA.NCA()
-nca.cargar_pesos(args.pesos_nca)
-print('Iniciado :D')
+#print('Se inicia el generador de máscaras... ', end='')
+#nca = mascaraNCA.NCA()
+#nca.cargar_pesos(args.pesos_nca)
+#print('Iniciado :D')
 
 ###Funciones de apoyo ----------------------------------------------------------------------
-def dibujar_rois(img, rois, conf_min=0.5):
+def dibujar_rois(img, rois, color=(255,0,0), conf_min=0.5, txt=''):
     for x1, y1, x2, y2, conf in rois:
         if conf>conf_min:
-            img = cv2.rectangle(img, (x1,y1), (x2,y2), (255,0,0))
-            img = cv2.putText(img, f'{conf:.4}', (x1,y1), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0),3)
+            img = cv2.rectangle(img, (x1,y1), (x2,y2), color)
+            img = cv2.putText(img, f'{conf:.4} {txt}', (x1,y1), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
     return img
 
+def puntos_medios(roi):
+    x1, y1, x2, y2, _ = roi
+    y = (y2+y1)//2
+    return (y, x1), (y, x2)
+
+"""
 def dibujar_masks(img, rois, conf_min=0.5, umbral_mask=0.3):
     canvas = img.copy()
     for x1, y1, x2, y2, conf in rois:
@@ -78,21 +89,65 @@ def dibujar_masks(img, rois, conf_min=0.5, umbral_mask=0.3):
             canvas = cv2.putText(canvas, f'{conf:.4}', (x1,y1), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,0,0),3)
             canvas[y1:y2, x1:x2, :] = (canvas[y1:y2, x1:x2]*0.3+mascara_bgr*0.7).astype(canvas.dtype)
     return canvas
+"""
+
+class StereoEstimator:
+    def __init__(self, calib_data_dir, img_shape):       
+        with open(calib_data_dir, 'rb') as f:
+            self.stereo_params = pickle.load(f)
+
+        ##Se hace el cálculo de la rectificación
+        self.R1, self.R2, self.P1, self.P2, _, _, _ =\
+                    cv2.stereoRectify(self.stereo_params['cameraMatrix1'],
+                                    self.stereo_params['distCoeffs1'],
+                                    self.stereo_params['cameraMatrix2'],
+                                    self.stereo_params['distCoeffs2'],
+                                    img_shape,#img1_o.shape[:2][::-1],
+                                    self.stereo_params['R'],
+                                    self.stereo_params['T'],
+                                    flags=cv2.CALIB_ZERO_DISPARITY,
+                                    alpha=0)
+    def triangular(self, p1, p2):
+        p1_corr = np.array([[p1[::-1]]], dtype=np.float32)
+        p2_corr = np.array([[p2[::-1]]], dtype=np.float32)
+        corregidos = cv2.correctMatches(self.stereo_params['F'], 
+                                        p1_corr, p2_corr)
+        p1_corr =  cv2.undistortPoints(corregidos[0], 
+                                    self.stereo_params['cameraMatrix1'], 
+                                    self.stereo_params['distCoeffs1'],
+                                    None, self.R1, self.P1)[0]
+        p2_corr =  cv2.undistortPoints(corregidos[1], 
+                                    self.stereo_params['cameraMatrix2'], 
+                                    self.stereo_params['distCoeffs2'],
+                                    None, self.R2, self.P2)[0]
+        triangulacion = cv2.convertPointsFromHomogeneous(
+                                        cv2.triangulatePoints(self.P1,
+                                                            self.P2,
+                                                            p1_corr.T,
+                                                            p2_corr.T).T
+                                                        )[0][0]
+        return triangulacion
+    
+    def distancia(self, p1, p2):
+        return euclidean(p1, p2)*24#self.stereo_params.get('tamano_cuadro', 25)
 ###-----------------------------------------------------------------------------------------
+video_delay = 1
+FPS = 25
+img_scale = 0.4
+
 
 dir_videos = os.path.abspath(args.data_dir)
+
 save_dir = os.path.join(dir_videos, 'res_sis') if args.save_dir=='' else args.save_dir
 p_vid_izq = glob(os.path.join(dir_videos, 'izq*.MP4'))[0]
 p_vid_der = glob(os.path.join(dir_videos, 'der*.MP4'))[0]
-p_calib_data = os.path.join(dir_videos, 'calib', 'calibData.pk')
+p_calib_data = args.calib_dir
 
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
     print(f'Se ha creado el directorio de guardado: {save_dir}')
 
-video_delay = 1
-FPS = 25
-img_scale = 0.4
+
 frame0 = max(abs(args.offset_d-args.offset_i),
             int(eval(args.frame0)))
 #print(frame0)
@@ -124,6 +179,9 @@ while frames_offset_izq>0 or frames_offset_der>0:
         frame_counter_der += 1
 print(f'Ajustado :D {frames_offset_izq}-{frames_offset_der}')
 
+#Se inicia el estimador
+estimador = StereoEstimator(p_calib_data, img_shape=frame_izq.shape[:2][::-1])
+
 pausa = not args.no_mostrar
 detectar =  args.no_mostrar
 while cam_izq.isOpened() or cam_der.isOpened():
@@ -135,6 +193,11 @@ while cam_izq.isOpened() or cam_der.isOpened():
         pausa = not pausa
     elif key_pressed == ord('d'):
         detectar = not detectar
+    elif key_pressed == ord('n'):
+        frame_izq, error_frames = obtener_frame(cam_izq)
+        frame_counter_izq += error_frames
+        frame_der, error_frames = obtener_frame(cam_der)
+        frame_counter_der += error_frames
     elif not pausa:
         frame_izq, error_frames = obtener_frame(cam_izq)
         frame_counter_izq += error_frames
@@ -142,10 +205,21 @@ while cam_izq.isOpened() or cam_der.isOpened():
         frame_counter_der += error_frames
 
     if detectar:
-        regs_izq = loc.localizar(frame_izq)
-        regs_der = loc.localizar(frame_der)
-        frame_izq = dibujar_masks(frame_izq, regs_izq)
-        frame_der = dibujar_masks(frame_der, regs_der)
+        rois_izq = loc.localizar(frame_izq)
+        rois_der = loc.localizar(frame_der)
+        emparejadas = emparejar_rois(frame_izq, frame_der, rois_izq, rois_der)
+
+        for i, (r1, r2) in enumerate(emparejadas):
+            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'Objeto {i+1}')
+            frame_der = dibujar_rois(frame_der, [r2], txt=f'Objeto {i+1}')
+
+            p1_i, p2_i = puntos_medios(r1)
+            p1_d, p2_d = puntos_medios(r2)
+
+            p1 = estimador.triangular(p1_i, p1_d)
+            p2 = estimador.triangular(p2_i, p2_d)
+            print(i+1, p1, p2, estimador.distancia(p1, p2))
+            print()
 
 
 

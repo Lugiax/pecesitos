@@ -160,8 +160,6 @@ class NCA(tf.keras.Model):
 
             #if e%1==0:
             ids = f_perdida(x, mascara).numpy().argsort()
-            mejor = x[ids[0]]
-            peor = x[ids[-1]]
 
             fig, axes = plt.subplots(2, 4, figsize=(20,8))
             imgs_to_plot = [imagen]+[x[i, ..., 0] for i in ids]
@@ -173,13 +171,13 @@ class NCA(tf.keras.Model):
                 ax.axis('off')
             #if plot: plt.show()
 
-            im_name = f'epoca-{e:0>6}.png'
+            im_name = f'epoca-{e:0>10}.png'
             plt.savefig(os.path.join(RUN_DIR, 'res_imgs',
                                         str(id_img), im_name))
 
             #Se actualiza el conjunto de estados
             x0 = x.numpy()
-            x0[ids[-4:]] = generar_semillas(4, CANALES=self.canales, DIM=dim, tipo='')
+            x0[ids[-2:]] = generar_semillas(2, CANALES=self.canales, DIM=dim, tipo='')
             datos[id_img][2] = x0
 
             fig, ax = plt.subplots()
