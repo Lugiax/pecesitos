@@ -10,6 +10,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('data_dir', type=str,
                     help='Directorio base donde se encuentran las imágenes para calibrar')
+parser.add_argument('tamano_cuadro', type=int,
+                    help='Tamaño de un cuadro del tablero de calibración')
 parser.add_argument('--save_dir', type=str,
                     help='Directorio relativo al directorio de datos donde se guardarán los resultados',
                     default='')
@@ -19,9 +21,7 @@ parser.add_argument('--error', type=float,
 parser.add_argument('--imgs_min', type=int,
                     help='Número mínimo de imágenes para hacer la calibración',
                     default = 15)
-parser.add_argument('--tamano_cuadro', type=int,
-                    help='Tamaño de un cuadro del tablero de calibración',
-                    default = 25)
+
 args = parser.parse_args()
 
 pattern_size = (8,6)

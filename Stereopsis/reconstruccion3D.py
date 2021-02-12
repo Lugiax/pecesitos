@@ -3,12 +3,13 @@ import numpy as np
 import cv2 as cv
 import pickle
 from scipy.spatial.distance import euclidean
+from numpy.linalg import norm
 
-directorio = '/media/carlos/Archivos/PROYECTO/angulos2/2'
-frame = 75
-path_img_i = os.path.join(directorio, f'imgs/izq/frame_izq_{frame}.png')
-path_img_d = os.path.join(directorio, f'imgs/der/frame_der_{frame}.png')
-calib_data_path = os.path.join(directorio, 'calib/calibData.pk')
+directorio = '/home/carlos/Documentos/Videos/prueba_angulo_libre/imgs/angulos'
+frame = 110
+path_img_i = os.path.join(directorio, f'izq/frame_izq_{frame}.png')
+path_img_d = os.path.join(directorio, f'der/frame_der_{frame}.png')
+calib_data_path = '/home/carlos/Documentos/Videos/prueba_angulo_libre/calib/calibData.pk'#os.path.join(directorio, 'calib/calibData.pk')
 
 factor_escala = 2.5
 ventana = (100,100)
@@ -53,6 +54,19 @@ def dibujar_puntos(img, pts1, pts2, factor_escala=factor_escala, x_offset=0,
     for p1, p2 in zip(pts2, pts1):
         cv.circle(img, tuple(p1[::-1]), size, color, -1)
         cv.circle(img, tuple(p2[::-1]), size, color, -1)
+
+def angulo(p1, p2):
+    """
+    Devuelve el valor del ángulo del vector p2-p1 considerando
+    solamente los ejex x y z. El valor devuelto está en radianes
+    TAMBIÉN ESTÁ EN SISTEMA.PY
+    """
+    p1_2d_y = np.array([p1[0], p1[2]]) 
+    p2_2d_y = np.array([p2[0], p2[2]])
+
+    unitario = np.array([1,0])
+    diff = p2_2d_y-p1_2d_y
+    return np.arccos( np.dot(unitario,diff) / (norm(unitario)*norm(diff))) # / np.pi * 180
 
 ##------------------------------------------------------------------------------
 print(f'Análisis del cuadro {frame}')
@@ -176,8 +190,8 @@ while True:
                 distancia = euclidean(*puntos3D)*tamano_cuadro
                 for p in puntos3D:
                     print(f'La distancia al punto {p} es de {p[2]*tamano_cuadro:.2f}{unidades}')
-                print(f'Distancia entre los puntos {puntos3D[0]} y {puntos3D[1]} es de '
-                      f'{distancia:.2f}{unidades}\n')
+                print(f'Distancia entre {puntos3D[0]} y {puntos3D[1]} es de '
+                      f'{distancia:.2f}{unidades}, el ángulo {angulo(*puntos3D):.4f}\n')
 
         puntos=[]
         puntos_agregados=False

@@ -9,7 +9,7 @@ import numpy as np
 def obtener_frame(camara, frame=None, ret=False):
     max_frames_error = 50
     error_frames_counter = 0
-    while not ret:
+    while not ret and camara.isOpened():
         if not ret and error_frames_counter<max_frames_error: 
             error_frames_counter+=1
             ret, frame = camara.read()
@@ -147,7 +147,30 @@ class Grabador:
         self.escritor.release()
 
 if __name__=='__main__':
-    g = Grabador('/home/carlos/Documentos/pecesitos/corridas/NCA_pool_2/res_imgs/0/grabacion.mp4', fps=5)
-    g.desde_carpeta('/home/carlos/Documentos/pecesitos/corridas/NCA_pool_2/res_imgs/0')
+    #g = Grabador('/home/carlos/Documentos/pecesitos/corridas/NCA_pool_2/res_imgs/0/grabacion.mp4', fps=5)
+    #g.desde_carpeta('/home/carlos/Documentos/pecesitos/corridas/NCA_pool_2/res_imgs/0')
     #g.desde_archivo(('/media/carlos/Archivos/PROYECTO/angulos2/1/izq1.MP4'))
+    import numpy as np
+    from numpy.linalg import norm
+
+    a = np.array([0,0,10])
+    b = np.array([100,0,11])
+
+    def angulo(p1, p2):
+        """
+        Devuelve el valor del ángulo del vector p2-p1 considerando
+        solamente los ejex x y z. El valor devuelto está en radianes
+        """
+        p1_2d_y = np.array([p1[0], p1[2]]) 
+        p2_2d_y = np.array([p2[0], p2[2]])
+
+        unitario = np.array([1,0])
+        diff = p2_2d_y-p1_2d_y
+        return np.arccos( np.dot(unitario,diff) / (norm(unitario)*norm(diff)))
+    
+    print(angulo(a,b))
+
+    for x in [5,10,15,20,25,30,35]:
+        print(np.arctan(x/40))
+
 

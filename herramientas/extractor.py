@@ -84,8 +84,10 @@ saved_frames_counter = 1
 frame_counter_der = 0
 frame_counter_izq = 0
 frame_counter = 0
+frame_counter_grabacion = 0
 pausa = True
 save = False
+grabar = False
 
 frame_izq, frame_counter_izq = obtener_frame(cam_izq)
 frame_der, frame_counter_der = obtener_frame(cam_der)
@@ -94,7 +96,9 @@ if args.grabar:
     print('Inicio de la grabación')
     grabador_i = Grabador(os.path.join(dir_to_save, 'grabación_izq.mp4'),FPS)
     grabador_d = Grabador(os.path.join(dir_to_save, 'grabación_der.mp4'),FPS)
-    pausa = False
+    if args.no_mostrar:
+        pausa = False
+        grabar = True
 
 frames_offset_der += frame0
 frames_offset_izq += frame0
@@ -118,6 +122,8 @@ while cam_izq.isOpened() or cam_der.isOpened():
         pausa = not pausa
     elif key_pressed == ord('s'):
         save = not save
+    elif key_pressed == ord('g'):
+        grabar= not grabar
     elif pausa and key_pressed==ord('i'):
         frame_izq, error_frames = obtener_frame(cam_izq)
         frame_counter_izq += error_frames
@@ -166,11 +172,11 @@ while cam_izq.isOpened() or cam_der.isOpened():
         frame_der, error_frames = obtener_frame(cam_der)
         frame_counter_der += error_frames
 
-    if args.grabar:
+    if grabar:
         grabador_i.agregar(frame_izq)
         grabador_d.agregar(frame_der)
-        frame_counter += 1
-        if frame_counter > eval(args.max_frames):
+        frame_counter_grabacion += 1
+        if eval(args.max_frames)!=0 and frame_counter > eval(args.max_frames):
             break
 
     if not args.no_mostrar:
@@ -212,5 +218,5 @@ cam_der.release()
 if args.grabar:
     grabador_d.terminar()
     grabador_i.terminar()
-    print(f'Grabación terminada. Se almacenaron {frame_counter} cuadros, equivalentes a {frame_counter/FPS:.2f} segundos.')
+    print(f'Grabación terminada. Se almacenaron {frame_counter_grabacion} cuadros, equivalentes a {frame_counter_grabacion/FPS:.2f} segundos.')
 cv2.destroyAllWindows()
