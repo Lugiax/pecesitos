@@ -3,15 +3,17 @@ import os, sys
 import argparse
 import time
 import pickle
+import csv
 import numpy as np
 import tensorflow as tf
 from glob import glob
 from PIL import Image
 from skimage.morphology import binary_opening, diamond
 from scipy.spatial.distance import euclidean
+from numpy.linalg import norm
 
 
-from herramientas.general import adjustFrame, obtener_frame, emparejar_rois
+from herramientas.general import adjustFrame, obtener_frame, emparejar_rois, Grabador
 #sys.path.append(os.path.abspath('modelos'))
 #print('path desde app principal', sys.path)
 from modelos import localizador#, mascaraNCA
@@ -27,7 +29,7 @@ parser.add_argument('--offset_d', type=int,
                     help='Cuadros de diferencia del video derecho',
                     default=0)
 parser.add_argument('--save_dir', type=str,
-                    help='Directorio base donde se descargarán todos los archivos',
+                    help='Directorio donde se guardarán todos los archivos generados',
                     default='')
 parser.add_argument('--frame0', type=str,
                     help='Cuadro de inicio de los videos, puede ser una expresión.', default='0')
@@ -40,7 +42,7 @@ parser.add_argument('--pesos_loc', type=str,
 parser.add_argument('--pesos_nca', type=str,
                     help='Ruta a los pesos del localizador',
                     default='pesos/nca/weights')
-parser.add_argument('--calib_dir', type=str,
+parser.add_argument('--calib_path', type=str,
                     help='Ruta al archivo *.pk de calibración',
                     default='calib/calibData.pk')
 parser.add_argument('--no_mostrar', action='store_true',
@@ -49,7 +51,7 @@ parser.add_argument('--no_mostrar', action='store_true',
 args = parser.parse_args()
 
 
-print('Se inicia el localizador... ', end='')
+print(f'Se inicia el localizador, pesos en {os.path.abspath(args.pesos_loc)}... ', end='')
 loc = localizador.Localizador(os.path.abspath(args.pesos_loc))
 print('Iniciado :D')
 #print('Se inicia el generador de máscaras... ', end='')
@@ -69,6 +71,18 @@ def puntos_medios(roi):
     x1, y1, x2, y2, _ = roi
     y = (y2+y1)//2
     return (y, x1), (y, x2)
+
+def angulo(p1, p2):
+    """
+    Devuelve el valor del ángulo del vector p2-p1 considerando
+    solamente los ejex x y z. El valor devuelto está en radianes
+    """
+    p1_2d_y = np.array([p1[0], p1[2]]) 
+    p2_2d_y = np.array([p2[0], p2[2]])
+
+    unitario = np.array([1,0])
+    diff = p2_2d_y-p1_2d_y
+    return np.arccos( np.dot(unitario,diff) / (norm(unitario)*norm(diff)))
 
 """
 def dibujar_masks(img, rois, conf_min=0.5, umbral_mask=0.3):
@@ -131,7 +145,7 @@ class StereoEstimator:
     def distancia(self, p1, p2):
         return euclidean(p1, p2)*24#self.stereo_params.get('tamano_cuadro', 25)
 ###-----------------------------------------------------------------------------------------
-video_delay = 1
+video_delay = 0
 FPS = 25
 img_scale = 0.4
 
@@ -141,7 +155,7 @@ dir_videos = os.path.abspath(args.data_dir)
 save_dir = os.path.join(dir_videos, 'res_sis') if args.save_dir=='' else args.save_dir
 p_vid_izq = glob(os.path.join(dir_videos, 'izq*.MP4'))[0]
 p_vid_der = glob(os.path.join(dir_videos, 'der*.MP4'))[0]
-p_calib_data = args.calib_dir
+p_calib_data = args.calib_path
 
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
@@ -184,7 +198,16 @@ estimador = StereoEstimator(p_calib_data, img_shape=frame_izq.shape[:2][::-1])
 
 pausa = not args.no_mostrar
 detectar =  args.no_mostrar
+grabar = args.no_mostrar
+if args.no_mostrar:
+    print('Inicio de la grabación')
+    grabador_i = Grabador(os.path.join(save_dir, 'grabación_izq.mp4'),FPS)
+    grabador_d = Grabador(os.path.join(save_dir, 'grabación_der.mp4'),FPS)
+
+a_escribir = ['frame,p1x,p1y,p1z,p2x,p2y,p2z,distancia,angulo'.split(',')]
+
 while cam_izq.isOpened() or cam_der.isOpened():
+    
     #print(f'Procesando cuadro {f_count}')
     key_pressed = cv2.waitKey(1)
     if key_pressed == ord('q'):
@@ -207,19 +230,23 @@ while cam_izq.isOpened() or cam_der.isOpened():
     if detectar:
         rois_izq = loc.localizar(frame_izq)
         rois_der = loc.localizar(frame_der)
-        emparejadas = emparejar_rois(frame_izq, frame_der, rois_izq, rois_der)
+        #emparejadas = emparejar_rois(frame_izq, frame_der, rois_izq, rois_der)
 
-        for i, (r1, r2) in enumerate(emparejadas):
-            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'Objeto {i+1}')
-            frame_der = dibujar_rois(frame_der, [r2], txt=f'Objeto {i+1}')
-
+        for r1, r2 in zip(rois_izq, rois_der):#enumerate(emparejadas):
             p1_i, p2_i = puntos_medios(r1)
             p1_d, p2_d = puntos_medios(r2)
 
             p1 = estimador.triangular(p1_i, p1_d)
             p2 = estimador.triangular(p2_i, p2_d)
-            print(i+1, p1, p2, estimador.distancia(p1, p2))
-            print()
+            distancia = estimador.distancia(p1, p2)
+            ang = angulo(p1,p2)
+
+            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{distancia:.2f}mm, {ang:.2f}rad')
+            frame_der = dibujar_rois(frame_der, [r2], txt=f'{distancia:.2f}mm, {ang:.2f}rad')
+            a_escribir.append([f_count]+list(p1)+list(p2)+[distancia, ang])
+            #print(a_escribir[-1])
+            #print(p1, p2, estimador.distancia(p1, p2))
+            #print()
 
 
 
@@ -230,9 +257,12 @@ while cam_izq.isOpened() or cam_der.isOpened():
         #print('Mostrando')
         cv2.imshow('Frame', img_comp)
     else:
+        #img = Image.fromarray(cv2.cvtColor(img_comp, cv2.COLOR_BGR2RGB))
+        #img.save(os.path.join(save_dir, f'frame_{f_count}.png'))
+        grabador_i.agregar(frame_izq)
+        grabador_d.agregar(frame_der)
         print(f'Guardando cuadro procesado {f_count}')
-        img = Image.fromarray(cv2.cvtColor(img_comp, cv2.COLOR_BGR2RGB))
-        img.save(os.path.join(save_dir, f'frame_{f_count}.png'))
+
     f_count += 1
     if frame_max>0 and (f_count-f0)>=frame_max:
         print('Saliendo...')
@@ -240,4 +270,12 @@ while cam_izq.isOpened() or cam_der.isOpened():
 
 cam_izq.release()
 cam_der.release()
-if not args.no_mostrar: cv2.destroyAllWindows()
+if not args.no_mostrar: 
+    cv2.destroyAllWindows()
+else:
+    grabador_i.terminar()
+    grabador_d.terminar()
+    with open(os.path.join(save_dir, 'grabación.csv'), 'w') as f:
+        escritor = csv.writer(f, delimiter=',')
+        escritor.writerows(a_escribir)
+
