@@ -1,60 +1,0 @@
-°Ç‡ëC
-
-nn
-trainer
-N
-layer_with_weights-0
-layer-0
-layer_with_weights-1
-layer-1
-u
-iter
-
-beta_1
-
-beta_2
-	decay	m
-mmm	v
-vvv
-
-
-	kernel
-
-bias
-
-
-kernel
-bias
-FD
-VARIABLE_VALUE	Adam/iter'trainer/iter/.ATTRIBUTES/VARIABLE_VALUE
-JH
-VARIABLE_VALUEAdam/beta_1)trainer/beta_1/.ATTRIBUTES/VARIABLE_VALUE
-JH
-VARIABLE_VALUEAdam/beta_2)trainer/beta_2/.ATTRIBUTES/VARIABLE_VALUE
-HF
-VARIABLE_VALUE
-Adam/decay(trainer/decay/.ATTRIBUTES/VARIABLE_VALUE
-ge
-VARIABLE_VALUEsequential/conv2d/kernel9nn/layer_with_weights-0/kernel/.ATTRIBUTES/VARIABLE_VALUE
-ca
-VARIABLE_VALUEsequential/conv2d/bias7nn/layer_with_weights-0/bias/.ATTRIBUTES/VARIABLE_VALUE
-ig
-VARIABLE_VALUEsequential/conv2d_1/kernel9nn/layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE
-ec
-VARIABLE_VALUEsequential/conv2d_1/bias7nn/layer_with_weights-1/bias/.ATTRIBUTES/VARIABLE_VALUE
-‰†
-VARIABLE_VALUEAdam/sequential/conv2d/kernel/mSnn/layer_with_weights-0/kernel/.OPTIMIZER_SLOT/trainer/m/.ATTRIBUTES/VARIABLE_VALUE
-…‚
-VARIABLE_VALUEAdam/sequential/conv2d/bias/mQnn/layer_with_weights-0/bias/.OPTIMIZER_SLOT/trainer/m/.ATTRIBUTES/VARIABLE_VALUE
-‹ˆ
-VARIABLE_VALUE!Adam/sequential/conv2d_1/kernel/mSnn/layer_with_weights-1/kernel/.OPTIMIZER_SLOT/trainer/m/.ATTRIBUTES/VARIABLE_VALUE
-‡„
-VARIABLE_VALUEAdam/sequential/conv2d_1/bias/mQnn/layer_with_weights-1/bias/.OPTIMIZER_SLOT/trainer/m/.ATTRIBUTES/VARIABLE_VALUE
-‰†
-VARIABLE_VALUEAdam/sequential/conv2d/kernel/vSnn/layer_with_weights-0/kernel/.OPTIMIZER_SLOT/trainer/v/.ATTRIBUTES/VARIABLE_VALUE
-…‚
-VARIABLE_VALUEAdam/sequential/conv2d/bias/vQnn/layer_with_weights-0/bias/.OPTIMIZER_SLOT/trainer/v/.ATTRIBUTES/VARIABLE_VALUE
-‹ˆ
-VARIABLE_VALUE!Adam/sequential/conv2d_1/kernel/vSnn/layer_with_weights-1/kernel/.OPTIMIZER_SLOT/trainer/v/.ATTRIBUTES/VARIABLE_VALUE
-‡„
-VARIABLE_VALUEAdam/sequential/conv2d_1/bias/vQnn/layer_with_weights-1/bias/.OPTIMIZER_SLOT/trainer/v/.ATTRIBUTES/VARIABLE_VALUE
