@@ -206,6 +206,8 @@ if args.no_mostrar:
 
 a_escribir = ['frame,p1x,p1y,p1z,p2x,p2y,p2z,distancia,angulo'.split(',')]
 
+buffer = [[],[]] #Una lista de longitudes y otra de ángulos
+
 while cam_izq.isOpened() or cam_der.isOpened():
     
     #print(f'Procesando cuadro {f_count}')
@@ -238,12 +240,22 @@ while cam_izq.isOpened() or cam_der.isOpened():
 
             p1 = estimador.triangular(p1_i, p1_d)
             p2 = estimador.triangular(p2_i, p2_d)
-            distancia = estimador.distancia(p1, p2)
-            ang = angulo(p1,p2)
+            buffer[0].append(estimador.distancia(p1, p2))
+            buffer[1].append(angulo(p1,p2))
+            
+            if len(buffer[0])>10:
+                longitudes = np.array(buffer[0])
+                promedio = np.mean(longitudes)
+                errores = np.abs(longitudes - promedio)
+                max_id = np.argmax(errores)
+                #print(f'Se eliminan {buffer[0][max_id]} y {buffer[1][max_id]}')
+                buffer[0].pop(max_id);buffer[1].pop(max_id)
 
-            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{distancia:.2f}mm, {ang:.2f}rad')
-            frame_der = dibujar_rois(frame_der, [r2], txt=f'{distancia:.2f}mm, {ang:.2f}rad')
-            a_escribir.append([f_count]+list(p1)+list(p2)+[distancia, ang])
+            longitud, ang = np.mean(buffer, axis=1)
+
+            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{longitud:.2f}mm, {ang:.2f}rad')
+            frame_der = dibujar_rois(frame_der, [r2], txt=f'{longitud:.2f}mm, {ang:.2f}rad')
+            a_escribir.append([f_count]+list(p1)+list(p2)+[longitud, ang])
             #print(a_escribir[-1])
             #print(p1, p2, estimador.distancia(p1, p2))
             #print()
