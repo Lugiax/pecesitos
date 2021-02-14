@@ -13,8 +13,7 @@ from scipy.spatial.distance import euclidean
 from numpy.linalg import norm
 
 
-from herramientas.general import adjustFrame, obtener_frame, emparejar_rois, Grabador,\
-                                EstimadorRansac
+from herramientas.general import adjustFrame, obtener_frame, emparejar_rois, Grabador
 #sys.path.append(os.path.abspath('modelos'))
 #print('path desde app principal', sys.path)
 from modelos import localizador#, mascaraNCA
@@ -145,6 +144,50 @@ class StereoEstimator:
     
     def distancia(self, p1, p2):
         return euclidean(p1, p2)*24#self.stereo_params.get('tamano_cuadro', 25)
+
+class EstimadorRansac:
+    def __init__(self, n_iter=100, p_subset=0.2, p_inliers=0.9):
+        self.n_iter = n_iter
+        self.p_inliers = p_inliers
+        self.p_subset = p_subset
+    
+    def estimar(self, datos, sigma = 0.5, min_inliers=0, devolver_peores=False):
+        """
+        Los datos deben ser números en una lista
+        [ 1,2,3,4,...,100]
+        """
+        if not isinstance(datos, type(np.array)):
+            datos = np.array(datos)
+        N = len(datos)
+        c_iter = 0
+        c_inliers = 0
+        ids = np.arange(N)
+        mejor_mean = None
+        mejor_error = np.inf
+
+        if N < 10:
+            return np.mean(datos), None
+
+        while c_iter < self.n_iter and c_inliers < int(self.p_inliers * N):
+            ids_subset = np.random.choice(ids, int(self.p_subset * N), replace=False)
+            subset = datos[ids_subset]
+            mean = np.mean(subset)
+            desviaciones = np.abs(datos-mean)
+            inliers = desviaciones < sigma
+            c_inliers = np.sum(inliers)
+            if c_inliers >= min_inliers and np.mean(desviaciones) < mejor_error:
+                mejor_mean = mean
+                mejor_error = np.mean(desviaciones)
+            c_iter += 1
+        
+        ids_peores=[]
+        if mejor_mean is not None:
+            ids_peores = np.argsort(np.abs(datos-mejor_mean))[::-1]
+
+        if devolver_peores:
+            return mejor_mean, ids_peores
+        else:
+            return mejor_mean, inliers
 ###-----------------------------------------------------------------------------------------
 video_delay = 0
 FPS = 25
@@ -196,7 +239,7 @@ print(f'Ajustado :D {frames_offset_izq}-{frames_offset_der}')
 
 #Se inician los estimadores
 estimador = StereoEstimator(p_calib_data, img_shape=frame_izq.shape[:2][::-1])
-ransac = EstimadorRansac(n_iter=100, p_subset=0.5, p_inliers=0.6)
+ransac = EstimadorRansac(n_iter=100, p_subset=0.2, p_inliers=0.9)
 
 pausa = not args.no_mostrar
 detectar =  args.no_mostrar
@@ -245,22 +288,20 @@ while cam_izq.isOpened() or cam_der.isOpened():
             buffer['long'].append(estimador.distancia(p1, p2))
             buffer['ang'].append(angulo(p1,p2))
             
-            if len(buffer['long'])>50:
-                longitud, _ = ransac.estimar(buffer['long'], sigma=0.5)
-                if longitud is None:
-                    print('Longitud None por ransac')
-                    longitud = np.mean(buffer['long'])
-            else:
-                longitud = np.mean(buffer['long'])    
-            
-            ang = np.mean(buffer['ang'][-5:])
+            longitud, peores = ransac.estimar(buffer['long'], sigma=1, devolver_peores=True)
+            ang = np.mean(buffer['ang'])
 
             frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{longitud:.2f}mm, {ang:.2f}rad')
             frame_der = dibujar_rois(frame_der, [r2], txt=f'{longitud:.2f}mm, {ang:.2f}rad')
             a_escribir.append([f_count]+list(p1)+list(p2)+[longitud, ang])
-            #print(a_escribir[-1])
-            #print(p1, p2, estimador.distancia(p1, p2))
-            #print()
+            
+            print(len(buffer['long']), longitud)
+            #Se eliminan los 5 peores registros
+            if len(buffer['long']) > FPS+10:
+                _a = np.array(buffer['long'])
+                buffer['long'] = list(_a[peores[10:]])
+                print(f'\t -- Eliminados: {_a[peores[:10]]}')
+            buffer['ang'] = buffer['ang'][-FPS:]
 
 
 
