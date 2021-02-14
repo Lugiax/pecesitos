@@ -13,7 +13,8 @@ from scipy.spatial.distance import euclidean
 from numpy.linalg import norm
 
 
-from herramientas.general import adjustFrame, obtener_frame, emparejar_rois, Grabador
+from herramientas.general import adjustFrame, obtener_frame, emparejar_rois, Grabador,\
+                                EstimadorRansac
 #sys.path.append(os.path.abspath('modelos'))
 #print('path desde app principal', sys.path)
 from modelos import localizador#, mascaraNCA
@@ -52,7 +53,7 @@ args = parser.parse_args()
 
 
 print(f'Se inicia el localizador, pesos en {os.path.abspath(args.pesos_loc)}... ', end='')
-loc = localizador.Localizador(os.path.abspath(args.pesos_loc))
+loc = localizador.Localizador(os.path.abspath(args.pesos_loc), conf_thres=0.8)
 print('Iniciado :D')
 #print('Se inicia el generador de máscaras... ', end='')
 #nca = mascaraNCA.NCA()
@@ -193,8 +194,9 @@ while frames_offset_izq>0 or frames_offset_der>0:
         frame_counter_der += 1
 print(f'Ajustado :D {frames_offset_izq}-{frames_offset_der}')
 
-#Se inicia el estimador
+#Se inician los estimadores
 estimador = StereoEstimator(p_calib_data, img_shape=frame_izq.shape[:2][::-1])
+ransac = EstimadorRansac(n_iter=100, p_subset=0.5, p_inliers=0.6)
 
 pausa = not args.no_mostrar
 detectar =  args.no_mostrar
@@ -206,7 +208,7 @@ if args.no_mostrar:
 
 a_escribir = ['frame,p1x,p1y,p1z,p2x,p2y,p2z,distancia,angulo'.split(',')]
 
-buffer = [[],[]] #Una lista de longitudes y otra de ángulos
+buffer = {'long':[],'ang':[]} #Una lista de longitudes y otra de ángulos
 
 while cam_izq.isOpened() or cam_der.isOpened():
     
@@ -240,18 +242,18 @@ while cam_izq.isOpened() or cam_der.isOpened():
 
             p1 = estimador.triangular(p1_i, p1_d)
             p2 = estimador.triangular(p2_i, p2_d)
-            buffer[0].append(estimador.distancia(p1, p2))
-            buffer[1].append(angulo(p1,p2))
+            buffer['long'].append(estimador.distancia(p1, p2))
+            buffer['ang'].append(angulo(p1,p2))
             
-            if len(buffer[0])>10:
-                longitudes = np.array(buffer[0])
-                promedio = np.mean(longitudes)
-                errores = np.abs(longitudes - promedio)
-                max_id = np.argmax(errores)
-                #print(f'Se eliminan {buffer[0][max_id]} y {buffer[1][max_id]}')
-                buffer[0].pop(max_id);buffer[1].pop(max_id)
-
-            longitud, ang = np.mean(buffer, axis=1)
+            if len(buffer['long'])>50:
+                longitud, _ = ransac.estimar(buffer['long'], sigma=0.5)
+                if longitud is None:
+                    print('Longitud None por ransac')
+                    longitud = np.mean(buffer['long'])
+            else:
+                longitud = np.mean(buffer['long'])    
+            
+            ang = np.mean(buffer['ang'][-5:])
 
             frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{longitud:.2f}mm, {ang:.2f}rad')
             frame_der = dibujar_rois(frame_der, [r2], txt=f'{longitud:.2f}mm, {ang:.2f}rad')

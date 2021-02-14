@@ -146,31 +146,58 @@ class Grabador:
     def terminar(self):
         self.escritor.release()
 
+
+class EstimadorRansac:
+    def __init__(self, n_iter=100, p_subset=0.5, p_inliers=0.5):
+        self.n_iter = n_iter
+        self.p_inliers = p_inliers
+        self.p_subset = p_subset
+    
+    def estimar(self, datos, sigma = 0.5, devolver_peores=False):
+        """
+        Los datos deben ser números en una lista
+        [ 1,2,3,4,...,100]
+        """
+        if not isinstance(datos, type(np.array)):
+            datos = np.array(datos)
+        N = len(datos)
+        c_iter = 0
+        c_inliers = N
+        ids = np.arange(N)
+        mejor_mean = None
+        mejor_error = np.inf
+        while c_iter < self.n_iter:
+            ids_subset = np.random.choice(ids, int(self.p_subset * N), replace=False)
+            subset = datos[ids_subset]
+            mean = np.mean(subset)
+            desviaciones = np.abs(datos-mean)
+            inliers = desviaciones < sigma
+            c_inliers = np.sum(inliers)
+            if c_inliers > int(self.p_inliers * N) and np.mean(desviaciones) < mejor_error:
+                mejor_mean = mean
+                mejor_error = np.mean(desviaciones)
+            c_iter += 1
+        if mejor_mean is not None:
+            ids_peores = np.argsort(np.abs(datos-mejor_mean))[::-1]
+
+        if devolver_peores:
+            return mejor_mean, ids_peores
+        else:
+            return mejor_mean, inliers
+
+
 if __name__=='__main__':
     #g = Grabador('/home/carlos/Documentos/pecesitos/corridas/NCA_pool_2/res_imgs/0/grabacion.mp4', fps=5)
     #g.desde_carpeta('/home/carlos/Documentos/pecesitos/corridas/NCA_pool_2/res_imgs/0')
     #g.desde_archivo(('/media/carlos/Archivos/PROYECTO/angulos2/1/izq1.MP4'))
     import numpy as np
-    from numpy.linalg import norm
 
-    a = np.array([0,0,10])
-    b = np.array([100,0,11])
+    ransac = EstimadorRansac()
+    datos = np.random.normal(1,.4,10000)
+    mean, peores = ransac.estimar(datos, devolver_peores=True)
+    print(mean)
+    print( peores)
 
-    def angulo(p1, p2):
-        """
-        Devuelve el valor del ángulo del vector p2-p1 considerando
-        solamente los ejex x y z. El valor devuelto está en radianes
-        """
-        p1_2d_y = np.array([p1[0], p1[2]]) 
-        p2_2d_y = np.array([p2[0], p2[2]])
 
-        unitario = np.array([1,0])
-        diff = p2_2d_y-p1_2d_y
-        return np.arccos( np.dot(unitario,diff) / (norm(unitario)*norm(diff)))
-    
-    print(angulo(a,b))
-
-    for x in [5,10,15,20,25,30,35]:
-        print(np.arctan(x/40))
 
 
