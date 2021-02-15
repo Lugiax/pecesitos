@@ -109,7 +109,7 @@ puntos3D = []
 puntos = []
 primer_punto = False
 puntos_agregados = False
-tamano_cuadro = 24#stereo_params.get('tamano_cuadro', 25)
+tamano_cuadro = stereo_params.get('tamano_cuadro', 25)
 unidades='mm'
 
 nombre_ventana = f'cuadro {frame}'

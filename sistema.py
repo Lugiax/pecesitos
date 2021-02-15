@@ -143,7 +143,7 @@ class StereoEstimator:
         return triangulacion
     
     def distancia(self, p1, p2):
-        return euclidean(p1, p2)*24#self.stereo_params.get('tamano_cuadro', 25)
+        return euclidean(p1, p2)*self.stereo_params.get('tamano_cuadro', 25)
 
 class EstimadorRansac:
     def __init__(self, n_iter=100, p_subset=0.2, p_inliers=0.9):
