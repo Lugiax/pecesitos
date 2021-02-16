@@ -6,6 +6,7 @@ import time
 from glob import glob
 import pickle
 import argparse
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
 parser.add_argument('data_dir', type=str,
@@ -21,6 +22,7 @@ parser.add_argument('--error', type=float,
 parser.add_argument('--imgs_min', type=int,
                     help='Número mínimo de imágenes para hacer la calibración',
                     default = 15)
+parser.add_argument('--manual', type=bool, default=False)
 
 args = parser.parse_args()
 
@@ -56,6 +58,7 @@ def buscar_y_extraer(img1, img2):
         return(corners1,corners2)
     else:
         return (None,None)
+
 
 print('Incio de la calibración\n')
 # termination criteria
@@ -126,18 +129,19 @@ while error_prom_max>error_promedio_min:
                                                 cv2.CALIB_FIX_PRINCIPAL_POINT+\
                                                 cv2.CALIB_FIX_ASPECT_RATIO+\
                                                 cv2.CALIB_FIX_K3)
-
+    #print(f'LOG perviewerrors {perViewErrors.shape}\n{perViewErrors}')
     promedio_errores = perViewErrors.mean(axis=0)
     print(f'\tError promedio\n\t\tCamara 1 = {promedio_errores[0]}'
          f'\n\t\tCamara 2 = {promedio_errores[1]}')
     
     error_prom_max = np.max(promedio_errores)
 
-    if  error_prom_max>error_promedio_min:
+    if  not args.manual and error_prom_max>error_promedio_min:
         umbral_errores = error_prom_max*factor_de_disminucion
         validos = np.logical_not(np.any(perViewErrors>umbral_errores,
                                  axis=1))
         index_val = np.where(validos)[0]
+
         a_eliminar = len(validos) - len(index_val)
 
         if a_eliminar==0 or len(objpoints_iter)-a_eliminar<n_imgs_min:
@@ -150,11 +154,20 @@ while error_prom_max>error_promedio_min:
         imgs_index = [imgs_index[indice] for indice in index_val]
         print(f'\t{a_eliminar} imágenes eliminadas.')
         contador_calibs += 1
+    elif args.manual:
+        #Se grafican los errores
+        ancho = 
+        plt.bar(imgpoints1_iter, perViewErrors[:,0])
+        plt.bar(imgpoints2_iter, perViewErrors[:,1])
+        plt.show()
+
     else:
         break
 
 print(f'\nError máximo alcanzado: {error_prom_max}. Número de patrones {len(objpoints_iter)}')
 
+
+"""
 
 res = {'cameraMatrix1': M1,
        'cameraMatrix2': M2,
@@ -170,7 +183,6 @@ save_filename = os.path.join(save_dir,'calibData.pk')
 with open(save_filename, 'wb') as f:
     pickle.dump(res, f)
 print('Los resultados fueron guardados en %s.npy'%save_filename)
-
 print('\nGuardando imágenes de reproyecciones...')
 for indice in imgs_index:
     im1_name = os.path.basename(imgs_list_val[indice][0])
@@ -189,3 +201,4 @@ for indice in imgs_index:
     cv2.imwrite(filename_im1, img1)
     cv2.imwrite(filename_im2, img2)
 print(f'Imágenes guardadas en {os.path.join(save_dir, "calib_proyections")}')
+"""
