@@ -32,7 +32,7 @@ imgs_izq_dir = os.path.join(imgs_dir, 'izq')
 imgs_der_dir = os.path.join(imgs_dir, 'der')
 save_dir = os.path.join(imgs_dir, args.save_dir)
 error_promedio_min = args.error #pixeles
-factor_de_disminucion = 0.99
+factor_de_disminucion = 0.95
 n_imgs_min = args.imgs_min
 
 assert os.path.exists(imgs_izq_dir) and os.path.exists(imgs_der_dir),\
@@ -59,6 +59,10 @@ def buscar_y_extraer(img1, img2):
     else:
         return (None,None)
 
+def obtener_numero(img_path):
+    nombre = os.path.basename(img_path)
+    return int(nombre.split('.')[0].split('_')[-1])
+
 
 print('Incio de la calibración\n')
 # termination criteria
@@ -72,6 +76,7 @@ objp[:,:2] = np.mgrid[0:pattern_size[0],0:pattern_size[1]].T.reshape(-1,2)
 objpoints = [] # 3d point in real world space
 imgpoints1 = []
 imgpoints2 = []
+imgs_num= []
 
 
 imgs_izq_list = sorted(glob(imgs_izq_dir+'/*'))
@@ -82,6 +87,7 @@ print(f'Obteniendo imágenes de {imgs_dir}')
 
 for img_name_izq, img_name_der in zip(imgs_izq_list, imgs_der_list):
     print(f'\tObteniendo puntos de {os.path.basename(img_name_izq)} y {os.path.basename(img_name_izq)}')
+    assert obtener_numero(img_name_izq) == obtener_numero(img_name_der), 'Error en el emparejamiento'
     img1 = cv2.imread(img_name_izq, 0)
     img2 = cv2.imread(img_name_der, 0)
     corners1, corners2 = buscar_y_extraer(img1, img2)
@@ -91,6 +97,7 @@ for img_name_izq, img_name_der in zip(imgs_izq_list, imgs_der_list):
         imgpoints2.append(corners2)
         objpoints.append(objp)
         imgs_list_val.append([img_name_izq, img_name_der])
+        imgs_num.append(obtener_numero(img_name_izq))
 
 print(f'Se obtuvieron {len(imgs_list_val)} puntos de imágenes válidas')
 
@@ -99,7 +106,7 @@ imgpoints2_iter = imgpoints2[::]
 objpoints_iter = objpoints[::]
 imgs_index = list(range(len(objpoints)))
 
-error_prom_max = np.Infinity
+error_prom_max = np.inf
 contador_calibs = 0
 while error_prom_max>error_promedio_min:
     print(f'\nCalibrando cámaras, iteracion {contador_calibs+1}, {len(objpoints_iter)} imágenes')
@@ -135,39 +142,46 @@ while error_prom_max>error_promedio_min:
          f'\n\t\tCamara 2 = {promedio_errores[1]}')
     
     error_prom_max = np.max(promedio_errores)
+    umbral_errores = error_prom_max*factor_de_disminucion
 
-    if  not args.manual and error_prom_max>error_promedio_min:
-        umbral_errores = error_prom_max*factor_de_disminucion
+    if  error_prom_max>error_promedio_min and len(objpoints_iter)-n_imgs_min>0:
         validos = np.logical_not(np.any(perViewErrors>umbral_errores,
                                  axis=1))
-        index_val = np.where(validos)[0]
-
-        a_eliminar = len(validos) - len(index_val)
-
-        if a_eliminar==0 or len(objpoints_iter)-a_eliminar<n_imgs_min:
-            break
-
-        print(f'\tEliminando imágenes con más de {umbral_errores:.3} de error...')
-        imgpoints1_iter = [imgpoints1_iter[indice] for indice in index_val]
-        imgpoints2_iter = [imgpoints2_iter[indice] for indice in index_val]
-        objpoints_iter  = [objpoints_iter[indice] for indice in index_val]
-        imgs_index = [imgs_index[indice] for indice in index_val]
-        print(f'\t{a_eliminar} imágenes eliminadas.')
-        contador_calibs += 1
-    elif args.manual:
-        #Se grafican los errores
-        ancho = 
-        plt.bar(imgpoints1_iter, perViewErrors[:,0])
-        plt.bar(imgpoints2_iter, perViewErrors[:,1])
-        plt.show()
-
+        indices_val = np.where(validos)[0]
+        #Se sortean de menor a mayor para usar pop al eliminar
+        indices_peores = np.argsort(np.mean(perViewErrors, axis=1))[::-1]
+        indices_a_eliminar = [i for i in indices_peores if not validos[i]][:len(objpoints_iter)-n_imgs_min]
     else:
         break
 
+
+    print(f'\t Se eliminarán {len(indices_a_eliminar)} imágenes. '
+          f'Sus números son {", ".join([str(imgs_num[i]) for i in indices_a_eliminar])}')
+
+    _indices = list(range(len(objpoints_iter)))
+    imgpoints1_iter = [imgpoints1_iter[i] for i in _indices if i not in indices_a_eliminar]
+    imgpoints2_iter = [imgpoints2_iter[i] for i in _indices if i not in indices_a_eliminar]
+    objpoints_iter  = [objpoints_iter[i] for i in _indices if i not in indices_a_eliminar]
+    imgs_num        = [imgs_num[i] for i in _indices if i not in indices_a_eliminar]
+    imgs_index      = [imgs_index[i] for i in _indices if i not in indices_a_eliminar]
+    print('\t Eliminadas correctamente.')
+    contador_calibs += 1
+
 print(f'\nError máximo alcanzado: {error_prom_max}. Número de patrones {len(objpoints_iter)}')
 
+#Se grafican los errores
+ancho = 0.4
+x = np.arange(perViewErrors.shape[0])
+fig, ax = plt.subplots()
+ax.bar(x-ancho/2, perViewErrors[:,0], ancho, label='Cam1')
+ax.bar(x+ancho/2, perViewErrors[:,1], ancho, label='Cam2')
+ax.plot([0,x[-1]], [error_promedio_min, error_promedio_min], 'g', label='Error esperado')
+ax.plot([0,x[-1]], [error_prom_max, error_prom_max], 'r', label='Error promedio')
+ax.set_xticks(x)
+ax.set_xticklabels(imgs_num)
+ax.legend()
+plt.show()
 
-"""
 
 res = {'cameraMatrix1': M1,
        'cameraMatrix2': M2,
@@ -182,7 +196,7 @@ print('\nGuardando resultados...')
 save_filename = os.path.join(save_dir,'calibData.pk')
 with open(save_filename, 'wb') as f:
     pickle.dump(res, f)
-print('Los resultados fueron guardados en %s.npy'%save_filename)
+print('Los resultados fueron guardados en %s'%save_filename)
 print('\nGuardando imágenes de reproyecciones...')
 for indice in imgs_index:
     im1_name = os.path.basename(imgs_list_val[indice][0])
@@ -201,4 +215,3 @@ for indice in imgs_index:
     cv2.imwrite(filename_im1, img1)
     cv2.imwrite(filename_im2, img2)
 print(f'Imágenes guardadas en {os.path.join(save_dir, "calib_proyections")}')
-"""
