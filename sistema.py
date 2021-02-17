@@ -80,9 +80,10 @@ def angulo(p1, p2):
     p1_2d_y = np.array([p1[0], p1[2]]) 
     p2_2d_y = np.array([p2[0], p2[2]])
 
-    unitario = np.array([1,0])
+    #unitario = np.array([1,0])
     diff = p2_2d_y-p1_2d_y
-    return np.arccos( np.dot(unitario,diff) / (norm(unitario)*norm(diff)))
+    #return np.arccos( np.dot(unitario,diff) / (norm(unitario)*norm(diff)))
+    return np.arctan(diff[1]/diff[0])*180/np.pi
 
 """
 def dibujar_masks(img, rois, conf_min=0.5, umbral_mask=0.3):
@@ -291,8 +292,8 @@ while cam_izq.isOpened() or cam_der.isOpened():
             longitud, peores = ransac.estimar(buffer['long'], sigma=1, devolver_peores=True)
             ang = np.mean(buffer['ang'])
 
-            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{longitud:.2f}mm, {ang:.2f}rad')
-            frame_der = dibujar_rois(frame_der, [r2], txt=f'{longitud:.2f}mm, {ang:.2f}rad')
+            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{longitud:.2f}mm, {ang:.2f}º')
+            frame_der = dibujar_rois(frame_der, [r2], txt=f'{longitud:.2f}mm, {ang:.2f}º')
             a_escribir.append([f_count]+list(p1)+list(p2)+[longitud, ang])
             
             print(len(buffer['long']), longitud)

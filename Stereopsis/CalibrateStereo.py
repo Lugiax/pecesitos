@@ -19,6 +19,9 @@ parser.add_argument('--save_dir', type=str,
 parser.add_argument('--error', type=float,
                     help='Error promedio máximo para la calibración, en píxeles',
                     default=1)
+parser.add_argument('--factor', type=float,
+                    help='Factor de disminución del error',
+                    default=1)
 parser.add_argument('--imgs_min', type=int,
                     help='Número mínimo de imágenes para hacer la calibración',
                     default = 15)
@@ -32,7 +35,7 @@ imgs_izq_dir = os.path.join(imgs_dir, 'izq')
 imgs_der_dir = os.path.join(imgs_dir, 'der')
 save_dir = os.path.join(imgs_dir, args.save_dir)
 error_promedio_min = args.error #pixeles
-factor_de_disminucion = 0.95
+factor_de_disminucion = args.factor
 n_imgs_min = args.imgs_min
 
 assert os.path.exists(imgs_izq_dir) and os.path.exists(imgs_der_dir),\
