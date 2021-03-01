@@ -250,7 +250,7 @@ if args.no_mostrar:
     grabador_i = Grabador(os.path.join(save_dir, 'grabación_izq.mp4'),FPS)
     grabador_d = Grabador(os.path.join(save_dir, 'grabación_der.mp4'),FPS)
 
-a_escribir = ['frame,p1x,p1y,p1z,p2x,p2y,p2z,distancia,angulo'.split(',')]
+a_escribir = ['frame,p1x,p1y,p1z,p2x,p2y,p2z,distancia_inmediata,angulo_inmediato,distanacia_RANSAC,angulo_prom'.split(',')]
 
 buffer = {'long':[],'ang':[]} #Una lista de longitudes y otra de ángulos
 
@@ -294,7 +294,7 @@ while cam_izq.isOpened() or cam_der.isOpened():
 
             frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{longitud:.2f}mm, {ang:.2f}º')
             frame_der = dibujar_rois(frame_der, [r2], txt=f'{longitud:.2f}mm, {ang:.2f}º')
-            a_escribir.append([f_count]+list(p1)+list(p2)+[longitud, ang])
+            a_escribir.append([f_count]+list(p1)+list(p2)+[estimador.distancia(p1, p2), angulo(p1,p2), longitud, ang])
             
             print(len(buffer['long']), longitud)
             #Se eliminan los 5 peores registros
