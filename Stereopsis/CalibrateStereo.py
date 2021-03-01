@@ -7,6 +7,7 @@ from glob import glob
 import pickle
 import argparse
 import matplotlib.pyplot as plt
+import logging
 
 parser = argparse.ArgumentParser()
 parser.add_argument('data_dir', type=str,
@@ -25,9 +26,10 @@ parser.add_argument('--factor', type=float,
 parser.add_argument('--imgs_min', type=int,
                     help='Número mínimo de imágenes para hacer la calibración',
                     default = 15)
-parser.add_argument('--manual', type=bool, default=False)
+#parser.add_argument('--mostrar', type=bool, default=False)
 
 args = parser.parse_args()
+logging.basicConfig(level=logging.INFO, format='%(message)s', filename='calib.log', filemode='w')
 
 pattern_size = (8,6)
 imgs_dir = os.path.abspath(args.data_dir)
@@ -66,8 +68,11 @@ def obtener_numero(img_path):
     nombre = os.path.basename(img_path)
     return int(nombre.split('.')[0].split('_')[-1])
 
+def loggear(msg):
+    print(msg)
+    logging.info(msg)
 
-print('Incio de la calibración\n')
+loggear('Incio de la calibración\n')
 # termination criteria
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
@@ -86,23 +91,23 @@ imgs_izq_list = sorted(glob(imgs_izq_dir+'/*'))
 imgs_der_list = sorted(glob(imgs_der_dir+'/*'))
 
 imgs_list_val = []
-print(f'Obteniendo imágenes de {imgs_dir}')
+loggear(f'Obteniendo imágenes de {imgs_dir}')
 
 for img_name_izq, img_name_der in zip(imgs_izq_list, imgs_der_list):
-    print(f'\tObteniendo puntos de {os.path.basename(img_name_izq)} y {os.path.basename(img_name_izq)}')
+    loggear(f'\tObteniendo puntos de {os.path.basename(img_name_izq)} y {os.path.basename(img_name_izq)}')
     assert obtener_numero(img_name_izq) == obtener_numero(img_name_der), 'Error en el emparejamiento'
     img1 = cv2.imread(img_name_izq, 0)
     img2 = cv2.imread(img_name_der, 0)
     corners1, corners2 = buscar_y_extraer(img1, img2)
     if corners1 is not None:
-        print('\t\tEncontrados... Guardando...')
+        loggear('\t\tEncontrados... Guardando...')
         imgpoints1.append(corners1)
         imgpoints2.append(corners2)
         objpoints.append(objp)
         imgs_list_val.append([img_name_izq, img_name_der])
         imgs_num.append(obtener_numero(img_name_izq))
 
-print(f'Se obtuvieron {len(imgs_list_val)} puntos de imágenes válidas')
+loggear(f'Se obtuvieron {len(imgs_list_val)} puntos de imágenes válidas')
 
 imgpoints1_iter = imgpoints1[::]
 imgpoints2_iter = imgpoints2[::]
@@ -112,22 +117,22 @@ imgs_index = list(range(len(objpoints)))
 error_prom_max = np.inf
 contador_calibs = 0
 while error_prom_max>error_promedio_min:
-    print(f'\nCalibrando cámaras, iteracion {contador_calibs+1}, {len(objpoints_iter)} imágenes')
+    loggear(f'\nCalibrando cámaras, iteracion {contador_calibs+1}, {len(objpoints_iter)} imágenes')
     ## Calibración de cada una de las cámaras:
-    print('\tCalibrando cámara izquierda...')
+    loggear('\tCalibrando cámara izquierda...')
     ret1, M1, distcoef1, rvecs1, tvecs1, _, _, errors1 = cv2.calibrateCameraExtended(objpoints_iter, imgpoints1_iter,
                                                             img1.shape[::-1], None, None,
                                                             flags=cv2.CALIB_ZERO_TANGENT_DIST+\
                                                                   cv2.CALIB_FIX_K3)
     
-    print(f'\t   -Error promedio {errors1.mean():.4}, max {errors1.max():.4}, min {errors1.min():.4}')
-    print('\tCalibrando cámara derecha...')
+    loggear(f'\t   -Error promedio {errors1.mean():.4}, max {errors1.max():.4}, min {errors1.min():.4}')
+    loggear('\tCalibrando cámara derecha...')
     ret2, M2, distcoef2, rvecs2, tvecs2, _, _, errors2 = cv2.calibrateCameraExtended(objpoints_iter, imgpoints2_iter,
                                                             img2.shape[::-1], None, None,
                                                             flags=cv2.CALIB_ZERO_TANGENT_DIST+\
                                                                   cv2.CALIB_FIX_K3)
-    print(f'\t   -Error promedio {errors2.mean():.4}, max {errors2.max():.4}, min {errors2.min():.4}')
-    print('\tCalibrando sistema estéreo...')
+    loggear(f'\t   -Error promedio {errors2.mean():.4}, max {errors2.max():.4}, min {errors2.min():.4}')
+    loggear('\tCalibrando sistema estéreo...')
     ret, M1, distcoef1, M2, distcoef2, R, T, E, F, perViewErrors =\
             cv2.stereoCalibrateExtended(objpoints_iter, imgpoints1_iter, imgpoints2_iter,
                                         M1, distcoef1, M2, distcoef2,
@@ -141,7 +146,7 @@ while error_prom_max>error_promedio_min:
                                                 cv2.CALIB_FIX_K3)
     #print(f'LOG perviewerrors {perViewErrors.shape}\n{perViewErrors}')
     promedio_errores = perViewErrors.mean(axis=0)
-    print(f'\tError promedio\n\t\tCamara 1 = {promedio_errores[0]}'
+    loggear(f'\tError promedio\n\t\tCamara 1 = {promedio_errores[0]}'
          f'\n\t\tCamara 2 = {promedio_errores[1]}')
     
     error_prom_max = np.max(promedio_errores)
@@ -158,7 +163,7 @@ while error_prom_max>error_promedio_min:
         break
 
 
-    print(f'\t Se eliminarán {len(indices_a_eliminar)} imágenes. '
+    loggear(f'\t Se eliminarán {len(indices_a_eliminar)} imágenes. '
           f'Sus números son {", ".join([str(imgs_num[i]) for i in indices_a_eliminar])}')
 
     _indices = list(range(len(objpoints_iter)))
@@ -167,15 +172,15 @@ while error_prom_max>error_promedio_min:
     objpoints_iter  = [objpoints_iter[i] for i in _indices if i not in indices_a_eliminar]
     imgs_num        = [imgs_num[i] for i in _indices if i not in indices_a_eliminar]
     imgs_index      = [imgs_index[i] for i in _indices if i not in indices_a_eliminar]
-    print('\t Eliminadas correctamente.')
+    loggear('\t Eliminadas correctamente.')
     contador_calibs += 1
 
-print(f'\nError máximo alcanzado: {error_prom_max}. Número de patrones {len(objpoints_iter)}')
+loggear(f'\nError máximo alcanzado: {error_prom_max}. Número de patrones {len(objpoints_iter)}')
 
 #Se grafican los errores
 ancho = 0.4
 x = np.arange(perViewErrors.shape[0])
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(15,10))
 ax.bar(x-ancho/2, perViewErrors[:,0], ancho, label='Cam1')
 ax.bar(x+ancho/2, perViewErrors[:,1], ancho, label='Cam2')
 ax.plot([0,x[-1]], [error_promedio_min, error_promedio_min], 'g', label='Error esperado')
@@ -183,7 +188,7 @@ ax.plot([0,x[-1]], [error_prom_max, error_prom_max], 'r', label='Error promedio'
 ax.set_xticks(x)
 ax.set_xticklabels(imgs_num)
 ax.legend()
-plt.show()
+plt.savefig(os.path.join(save_dir, 'errores.png'))
 
 
 res = {'cameraMatrix1': M1,
@@ -195,12 +200,12 @@ res = {'cameraMatrix1': M1,
        'E': E,
        'F': F,
        'tamano_cuadro': args.tamano_cuadro}
-print('\nGuardando resultados...')
+loggear('\nGuardando resultados...')
 save_filename = os.path.join(save_dir,'calibData.pk')
 with open(save_filename, 'wb') as f:
     pickle.dump(res, f)
-print('Los resultados fueron guardados en %s'%save_filename)
-print('\nGuardando imágenes de reproyecciones...')
+loggear('Los resultados fueron guardados en %s'%save_filename)
+loggear('\nGuardando imágenes de reproyecciones...')
 for indice in imgs_index:
     im1_name = os.path.basename(imgs_list_val[indice][0])
     im2_name = os.path.basename(imgs_list_val[indice][0])
@@ -217,4 +222,4 @@ for indice in imgs_index:
     filename_im2 = os.path.join(save_dir, 'calib_proyections', 'der', f'projected_{im2_name.split(".")[0]}.png')
     cv2.imwrite(filename_im1, img1)
     cv2.imwrite(filename_im2, img2)
-print(f'Imágenes guardadas en {os.path.join(save_dir, "calib_proyections")}')
+loggear(f'Imágenes guardadas en {os.path.join(save_dir, "calib_proyections")}')
