@@ -47,12 +47,15 @@ parser.add_argument('--calib_path', type=str,
                     default='calib/calibData.pk')
 parser.add_argument('--no_mostrar', action='store_true',
                     help='Bandera para no mostrar los resultados, se almacenarán en la carpeta correspondiente')
+parser.add_argument('--conf', type=float,
+                    help='Confianza minima del detector',
+                    default=0.8)
 
 args = parser.parse_args()
 
 
 print(f'Se inicia el localizador, pesos en {os.path.abspath(args.pesos_loc)}... ', end='')
-loc = localizador.Localizador(os.path.abspath(args.pesos_loc), conf_thres=0.8)
+loc = localizador.Localizador(os.path.abspath(args.pesos_loc), conf_thres=args.conf)
 print('Iniciado :D')
 #print('Se inicia el generador de máscaras... ', end='')
 #nca = mascaraNCA.NCA()
@@ -166,7 +169,7 @@ class EstimadorRansac:
         mejor_mean = None
         mejor_error = np.inf
 
-        if N < 10:
+        if N < 25: #FPS
             return np.mean(datos), None
 
         while c_iter < self.n_iter and c_inliers < int(self.p_inliers * N):
@@ -275,6 +278,10 @@ while cam_izq.isOpened() or cam_der.isOpened():
         frame_der, error_frames = obtener_frame(cam_der)
         frame_counter_der += error_frames
 
+    if frame_izq is None or frame_der is None:
+        print('Frames no encontrados... saliendo...')
+        break
+
     if detectar:
         rois_izq = loc.localizar(frame_izq)
         rois_der = loc.localizar(frame_der)
@@ -292,17 +299,17 @@ while cam_izq.isOpened() or cam_der.isOpened():
             longitud, peores = ransac.estimar(buffer['long'], sigma=1, devolver_peores=True)
             ang = np.mean(buffer['ang'])
 
-            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{longitud:.2f}mm, {ang:.2f}º')
-            frame_der = dibujar_rois(frame_der, [r2], txt=f'{longitud:.2f}mm, {ang:.2f}º')
+            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{longitud:.2f}mm, {ang:.2f}deg')
+            frame_der = dibujar_rois(frame_der, [r2], txt=f'{longitud:.2f}mm, {ang:.2f}deg')
             a_escribir.append([f_count]+list(p1)+list(p2)+[estimador.distancia(p1, p2), angulo(p1,p2), longitud, ang])
             
-            print(len(buffer['long']), longitud)
-            #Se eliminan los 5 peores registros
+            print(len(buffer['long']), estimador.distancia(p1,p2), longitud)
+            #Se eliminan los 18 peores registros
             if len(buffer['long']) > FPS+10:
                 _a = np.array(buffer['long'])
-                buffer['long'] = list(_a[peores[10:]])
+                buffer['long'] = list(_a[peores[18:]])
                 print(f'\t -- Eliminados: {_a[peores[:10]]}')
-            buffer['ang'] = buffer['ang'][-FPS:]
+            buffer['ang'] = buffer['ang'][-FPS:] #Se toma en cuenta solamente una ventana de 1s de angulos
 
 
 
