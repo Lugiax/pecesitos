@@ -43,7 +43,7 @@ video_delay = 0.00
 frames_offset_izq = args.offset_i
 frames_offset_der = args.offset_d
 FPS = 25
-img_scale = 0.4
+img_scale = 0.3
 show = True
 frame0 = max(abs(frames_offset_der-frames_offset_izq),
             int(eval(args.frame0)))
@@ -218,5 +218,6 @@ cam_der.release()
 if args.grabar:
     grabador_d.terminar()
     grabador_i.terminar()
-    print(f'Grabación terminada. Se almacenaron {frame_counter_grabacion} cuadros, equivalentes a {frame_counter_grabacion/FPS:.2f} segundos.')
+    print(f'Grabación terminada. Se almacenaron {frame_counter_grabacion} cuadros, '
+    f'equivalentes a {frame_counter_grabacion/FPS:.2f} segundos en {os.path.join(dir_to_save, "grabación_izq.mp4")}')
 cv2.destroyAllWindows()
