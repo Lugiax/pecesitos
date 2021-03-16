@@ -13,6 +13,18 @@ parser.add_argument('--tamano_cuadro', type = int, default=12)
 
 args = parser.parse_args()
 
+correcciones_z = {'piraña': -12,
+                'cirujano': -18}
+longitudes = {'piraña': 66,
+                'cirujano': 70}
+centro_cam = [95+80,160,55]
+
+altura = 305-80
+posiciones_p = list(range(12,35,2))
+posiciones_h = [170-86, 207-86, 257-86]
+
+n_Ps, n_Hs = len(posiciones_p), len(posiciones_h)
+
 csv_path = os.path.join(args.data_dir, 'grabación.csv')
 secciones_path = os.path.join(args.data_dir, 'secciones.txt')
 pez = args.tipo_pez
@@ -37,11 +49,10 @@ if not os.path.isfile(secciones_path):
     plt.show()
     #Se procede a ingresar los datos
     print('Ingresar los límites en la forma L1 - L2')
-    Ps, Hs = (1,2,3,4,5,6), (1,2,3)
     lines=[]
-    for H in Hs:
-        for P in Ps:
-            coord = f'P{P} , H{H}'
+    for H in range(n_Hs):
+        for P in range(n_Ps):
+            coord = f'P{P+1} , H{H+1}'
             res = input(f'{coord} > ')
             lines.append(f'{coord} : {res}')
     with open(secciones_path, 'w') as f:
@@ -51,375 +62,13 @@ if not os.path.isfile(secciones_path):
 secciones = []
 with open(secciones_path, 'r') as f:
     lineas = f.readlines()
-    for l in li'888888888888888888
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666635555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555555--------------------------------------------------333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333
+    for l in lineas:
+        _, inic_fin = l.split(':')
         if 'NA' in inic_fin:
             secciones.append([-1, -1])
         else:
             secciones.append([int(x.strip()) for x in inic_fin.split('-')])
 
-
-correcciones_z = {'piraña': -12,
-                'cirujano': -18}
-longitudes = {'piraña': 66,
-                'cirujano': 70}
-centro_cam = [95+80,160,55]
-
-posiciones_p = [195,245,295,345,395,445]
-posiciones_h = [170-86, 207-86, 257-86]
-altura = 160
 
 # Hs en columnas Ps en filas
 coordenadas_pos = np.array([[[ph - centro_cam[0],
@@ -440,7 +89,7 @@ for i, P_z in enumerate(profundidades):
     datos_para_tabla_estimados += f'P{i+1}&'
     datos_para_tabla_reales += f'P{i+1}&'
     for j, hx in enumerate(P_z):
-        inicio, fin = secciones[i+j*6]
+        inicio, fin = secciones[i+j*n_Ps]
         corrida = data[data.frame.between(inicio, fin, inclusive=True)]
         dist = corrida.distancia_inmediata
         prof = corrida.profundidad
@@ -459,7 +108,7 @@ for i, P_z in enumerate(profundidades):
     datos_para_tabla_estimados = datos_para_tabla_estimados[:-1] + '\\\\'
     datos_para_tabla_reales = datos_para_tabla_reales[:-1] + '\\\\'
 
-
+print(len(por_profundidades))
 print('Copia para tabla de datos de profundidades ---------------------------------------')
 datos_para_tabla_estimados = """\\begin{table}[h!]
     \\centering
@@ -484,22 +133,22 @@ print('-------------------------------------------------------------------------
 calculos = np.array(calculos)
 
 #Gráfico de longitudes por profundidades-------------------------------------------------------------------------------------------
-colors = ['#1D3461', '#1F487E',  
-          '#376996', '#6290C8',
-          '#7296C2', '#829CBC']
+#colors = ['#1D3461', '#1F487E',  
+#          '#376996', '#6290C8',
+#          '#7296C2', '#829CBC']
 fig, ax = plt.subplots(figsize=(7,4))
 bp = ax.boxplot([p[0] for p in por_profundidades],
                 labels = [f'P{n+1}' for n in range(len(por_profundidades))],
                 patch_artist=True,
                 sym='' ##Esconder los flyers
                 )
-for patch, color in zip(bp['boxes'], colors[::-1]): 
-    patch.set_facecolor(color) 
+#for patch, color in zip(bp['boxes'], colors[::-1]): 
+#    patch.set_facecolor(color) 
 for median in bp['medians']: 
     median.set(color ='white', 
                linewidth = 1) 
 ax.grid(which='both', axis = 'y')
-ax.set_xlabel('Profundidades')
+ax.set_xlabel('Posiciones en P')
 ax.set_ylabel(r'Longitud estimada ($L$)' )
 #plt.show()
 
@@ -508,11 +157,12 @@ ax.set_ylabel(r'Longitud estimada ($L$)' )
 errores = -np.log(np.array([[np.mean(p[2]), np.mean(p[3])] for p in por_profundidades]))
 
 fig, ax = plt.subplots(figsize=(7,4))
-ax.plot(errores[:,0], 'r-', label=r'$e_L$')
-ax.plot(errores[:,1], 'b-', label=r'$e_Pz$')
+ax.plot(np.arange(n_Ps), errores[:,0], 'r-', label=r'$e_L$')
+ax.plot(np.arange(n_Ps), errores[:,1], 'b-', label=r'$e_Pz$')
 ax.set_ylabel(r'-$\log(e)$')
-ax.set_xlabel('Profundidades')
-ax.set_xticklabels(['0']+[f'P{n+1}' for n in range(len(por_profundidades))])
+ax.set_xlabel('Posiciones en P')
+ax.set_xticks(np.arange(n_Ps))
+ax.set_xticklabels([f'P{n+1}' for n in range(n_Ps)])
 ax.grid(axis='y')
 ax.legend()
 plt.show()

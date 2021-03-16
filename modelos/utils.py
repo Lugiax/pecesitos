@@ -70,7 +70,7 @@ def graficar_perdidas(logs_path, unicos=None, figsize=(10,5), n_mejores=5, n_peo
 
 if __name__=='__main__':
     import os
-    dir = '/home/carlos/Documentos/Codes/pecesitos/corridas/NCA_900_100000/'
+    dir = '/home/carlos/Documentos/Codes/pecesitos/corridas/NCA90'
     #mostrar_animacion('../corridas/NCA90/res_imgs/70')
     graficar_perdidas(os.path.join(dir, 'log.csv'), n_mejores=5, title='Mejores')
     for n in[]:
