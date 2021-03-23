@@ -7,7 +7,7 @@ from glob import glob
 import pickle
 import argparse
 import matplotlib.pyplot as plt
-import logging
+#import logging
 
 parser = argparse.ArgumentParser()
 parser.add_argument('data_dir', type=str,
@@ -29,7 +29,8 @@ parser.add_argument('--imgs_min', type=int,
 #parser.add_argument('--mostrar', type=bool, default=False)
 
 args = parser.parse_args()
-logging.basicConfig(level=logging.INFO, format='%(message)s', filename='calib.log', filemode='w')
+#logging.basicConfig(level=logging.INFO, format='%(message)s', filename='calib.log', filemode='w')
+LOG=''
 
 pattern_size = (8,6)
 imgs_dir = os.path.abspath(args.data_dir)
@@ -69,8 +70,10 @@ def obtener_numero(img_path):
     return int(nombre.split('.')[0].split('_')[-1])
 
 def loggear(msg):
+    global LOG
     print(msg)
-    logging.info(msg)
+    LOG += msg+'\n'
+    #logging.info(msg)
 
 loggear('Incio de la calibración\n')
 # termination criteria
@@ -199,7 +202,14 @@ res = {'cameraMatrix1': M1,
        'T': T,
        'E': E,
        'F': F,
-       'tamano_cuadro': args.tamano_cuadro}
+       'tamano_cuadro': args.tamano_cuadro,
+       'imgs_index': imgs_index,
+       'imgs_nums': imgs_nums,
+       'imgs_points1': imgpoints1_iter,
+       'imgs_points2': imgpoints2_iter,
+       'obg_points': objpoints_iter,
+       'errores': perViewErrors,
+       'error_esperado': error_promedio_min}
 loggear('\nGuardando resultados...')
 save_filename = os.path.join(save_dir,'calibData.pk')
 with open(save_filename, 'wb') as f:
@@ -223,3 +233,6 @@ for indice in imgs_index:
     cv2.imwrite(filename_im1, img1)
     cv2.imwrite(filename_im2, img2)
 loggear(f'Imágenes guardadas en {os.path.join(save_dir, "calib_proyections")}')
+
+with open(os.path.join(save_dir, 'log.txt'), 'w') as f:
+    f.write(LOG)
