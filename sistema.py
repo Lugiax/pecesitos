@@ -299,8 +299,8 @@ while cam_izq.isOpened() or cam_der.isOpened():
             longitud, peores = ransac.estimar(buffer['long'], sigma=1, devolver_peores=True)
             ang = np.mean(buffer['ang'])
 
-            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{longitud:.2f}mm, {ang:.2f}deg')
-            frame_der = dibujar_rois(frame_der, [r2], txt=f'{longitud:.2f}mm, {ang:.2f}deg')
+            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{estimador.distancia(p1, p2):.2f}mm, {ang:.2f}deg')
+            frame_der = dibujar_rois(frame_der, [r2], txt=f'{estimador.distancia(p1, p2):.2f}mm, {ang:.2f}deg')
             a_escribir.append([f_count]+list(p1)+list(p2)+[estimador.distancia(p1, p2), angulo(p1,p2), longitud, ang])
             
             print(len(buffer['long']), estimador.distancia(p1,p2), longitud)
