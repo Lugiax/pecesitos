@@ -6,7 +6,7 @@ from skimage.feature import match_descriptors, ORB, plot_matches
 from skimage.color import rgb2gray
 import numpy as np
 
-def obtener_frame(camara, frame=None, ret=False):
+def obtener_frame(camara, frame=None, ret=False, voltear=False):
     max_frames_error = 50
     error_frames_counter = 0
     while not ret and camara.isOpened():
@@ -16,6 +16,9 @@ def obtener_frame(camara, frame=None, ret=False):
         elif error_frames_counter==max_frames_error:
             print('LIMITE DE FRAMES CON ERROR ALCANZADO. SALIENDO.')
             break
+    if not voltear:
+        frame = cv2.rotate(frame, cv2.ROTATE_180)
+
     return frame, error_frames_counter
 
 def adjustFrame(frame, scale = 1):

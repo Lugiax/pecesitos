@@ -19,6 +19,7 @@ args = parser.parse_args()
 
 files_grab = sorted(glob(os.path.join(args.data_dir, 'grabación*.csv')))
 files_secc = sorted(glob(os.path.join(args.data_dir, 'secciones*.txt')))
+print(files_grab)
 
 parciales = []
 for grab_path, secc_path in zip(files_grab, files_secc):
@@ -26,7 +27,7 @@ for grab_path, secc_path in zip(files_grab, files_secc):
     parciales.append(res)
 
 shape = (len(parciales[0]), len(parciales[0][0]), len(parciales[0][0][0]))
-
+print(shape)
 totales = [[[[] for _ in range(shape[2])] for _ in range(shape[1])] for _ in range(shape[0])]
 promedios = [[[] for _ in range(shape[1])] for _ in range(shape[0])]
 desv_stds = [[[] for _ in range(shape[1])] for _ in range(shape[0])]
@@ -36,16 +37,20 @@ desv_stds = [[[] for _ in range(shape[1])] for _ in range(shape[0])]
 for x in range(shape[0]):
     for y in range(shape[1]):
         for z in range(shape[2]):
-            totales[x][y][z] += flatten([p[x][y][z] for p in parciales])
-            promedios[x][z].append(np.mean(flatten([p[x][y][z] for p in parciales])))
-            desv_stds[x][z].append(np.std(flatten([p[x][y][z] for p in parciales])))
+            todos = flatten([p[x][y][z] for p in parciales])
+            totales[x][y][z] += todos
+            promedios[x][z].append(np.mean(todos))
+            desv_stds[x][z].append(np.std(todos))
             
+            #if y==0:
+            #    fig, ax = plt.subplots()
+            #    for i, p in enumerate(parciales):
+            #        ax.set_title(f'P{x+1} - H{z+1}')
+            #        ax.plot(p[x][y][z], label=f'corrida {i+1}')
+            #    plt.legend()
+            #    plt.show()
+                        
 promedios = np.array(promedios)
-
-#print([[np.mean(l) for l in t] for t in totales[7]])
-#plt.plot(totales[7][0][2])
-#plt.show()
-
 
 eL_min = np.min(promedios[:, :, 1])
 eL_max = np.max(promedios[:, :, 1])

@@ -25,6 +25,10 @@ parser.add_argument('--no_mostrar', action='store_true',
                     help='Bandera para no mostrar las ventanas')
 parser.add_argument('--grabar', action='store_true',
                     help='Bandera para grabar los resultados')
+parser.add_argument('--voltear_i', action='store_true',
+                    help='Rotar 180 la imagen izquierda')
+parser.add_argument('--voltear_d', action='store_true',
+                    help='Rotar 180 la imagen derecha')
 
 args = parser.parse_args()
 
@@ -89,8 +93,8 @@ pausa = True
 save = False
 grabar = False
 
-frame_izq, frame_counter_izq = obtener_frame(cam_izq)
-frame_der, frame_counter_der = obtener_frame(cam_der)
+frame_izq, frame_counter_izq = obtener_frame(cam_izq, voltear=args.voltear_i)
+frame_der, frame_counter_der = obtener_frame(cam_der, voltear=args.voltear_d)
 
 if args.grabar:
     print('Inicio de la grabación')
@@ -125,10 +129,10 @@ while cam_izq.isOpened() or cam_der.isOpened():
     elif key_pressed == ord('g'):
         grabar= not grabar
     elif pausa and key_pressed==ord('i'):
-        frame_izq, error_frames = obtener_frame(cam_izq)
+        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i)
         frame_counter_izq += error_frames
     elif pausa and key_pressed==ord('d'):
-        frame_der, error_frames = obtener_frame(cam_der)
+        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d)
         frame_counter_der += error_frames
     elif key_pressed == ord('c'):
         new_frame_izq = frame_izq.copy()
@@ -167,9 +171,9 @@ while cam_izq.isOpened() or cam_der.isOpened():
             pausa = False
 
     elif not pausa:
-        frame_izq, error_frames = obtener_frame(cam_izq)
+        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i)
         frame_counter_izq += error_frames
-        frame_der, error_frames = obtener_frame(cam_der)
+        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d)
         frame_counter_der += error_frames
 
     if grabar:
