@@ -16,7 +16,7 @@ def obtener_frame(camara, frame=None, ret=False, voltear=False):
         elif error_frames_counter==max_frames_error:
             print('LIMITE DE FRAMES CON ERROR ALCANZADO. SALIENDO.')
             break
-    if not voltear:
+    if voltear:
         frame = cv2.rotate(frame, cv2.ROTATE_180)
 
     return frame, error_frames_counter

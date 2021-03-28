@@ -303,12 +303,12 @@ while cam_izq.isOpened() or cam_der.isOpened():
             frame_der = dibujar_rois(frame_der, [r2], txt=f'{estimador.distancia(p1, p2):.2f}mm, {ang:.2f}deg')
             a_escribir.append([f_count]+list(p1)+list(p2)+[estimador.distancia(p1, p2), angulo(p1,p2), longitud, ang])
             
-            print(len(buffer['long']), estimador.distancia(p1,p2), longitud)
+            #print(len(buffer['long']), estimador.distancia(p1,p2), longitud)
             #Se eliminan los 18 peores registros
             if len(buffer['long']) > FPS+10:
                 _a = np.array(buffer['long'])
                 buffer['long'] = list(_a[peores[18:]])
-                print(f'\t -- Eliminados: {_a[peores[:10]]}')
+                #print(f'\t -- Eliminados: {_a[peores[:10]]}')
             buffer['ang'] = buffer['ang'][-FPS:] #Se toma en cuenta solamente una ventana de 1s de angulos
 
 
@@ -324,7 +324,7 @@ while cam_izq.isOpened() or cam_der.isOpened():
         #img.save(os.path.join(save_dir, f'frame_{f_count}.png'))
         grabador_i.agregar(frame_izq)
         grabador_d.agregar(frame_der)
-        print(f'Guardando cuadro procesado {f_count}')
+        #print(f'Guardando cuadro procesado {f_count}')
 
     f_count += 1
     if frame_max>0 and (f_count-f0)>=frame_max:
