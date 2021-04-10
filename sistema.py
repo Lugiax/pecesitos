@@ -13,7 +13,7 @@ from scipy.spatial.distance import euclidean
 from numpy.linalg import norm
 
 
-from herramientas.general import adjustFrame, obtener_frame, emparejar_rois, Grabador
+from herramientas.general import adjustFrame, obtener_frame, Grabador
 #sys.path.append(os.path.abspath('modelos'))
 #print('path desde app principal', sys.path)
 from modelos import localizador#, mascaraNCA
@@ -88,6 +88,8 @@ def angulo(p1, p2):
     #return np.arccos( np.dot(unitario,diff) / (norm(unitario)*norm(diff)))
     return np.arctan(diff[1]/diff[0])*180/np.pi
 
+
+
 """
 def dibujar_masks(img, rois, conf_min=0.5, umbral_mask=0.3):
     canvas = img.copy()
@@ -125,7 +127,7 @@ class StereoEstimator:
                                     self.stereo_params['T'],
                                     flags=cv2.CALIB_ZERO_DISPARITY,
                                     alpha=0)
-    def triangular(self, p1, p2):
+    def triangular(self, p1, p2, devolver_error=False):
         p1_corr = np.array([[p1[::-1]]], dtype=np.float32)
         p2_corr = np.array([[p2[::-1]]], dtype=np.float32)
         corregidos = cv2.correctMatches(self.stereo_params['F'], 
@@ -144,7 +146,11 @@ class StereoEstimator:
                                                             p1_corr.T,
                                                             p2_corr.T).T
                                                         )[0][0]
-        return triangulacion
+        if devolver_error:
+            errores = [euclidean(px, py) for px, py in zip([[p1[::-1]], [p2[::-1]]], corregidos)]
+            return triangulacion, errores
+        else:
+            return triangulacion
     
     def distancia(self, p1, p2):
         return euclidean(p1, p2)*self.stereo_params.get('tamano_cuadro', 25)
@@ -287,21 +293,52 @@ while cam_izq.isOpened() or cam_der.isOpened():
         rois_der = loc.localizar(frame_der)
         #emparejadas = emparejar_rois(frame_izq, frame_der, rois_izq, rois_der)
 
-        for r1, r2 in zip(rois_izq, rois_der):#enumerate(emparejadas):
-            p1_i, p2_i = puntos_medios(r1)
-            p1_d, p2_d = puntos_medios(r2)
+        p_medios_i = [puntos_medios(r) for r in rois_izq]
+        p_medios_d = [puntos_medios(r) for r in rois_der]
+        #ref = 0 if len(p_medios[0])>=len(p_medios[1]) else 1 #0-izquierda, 1-derecha
+        errores = np.zeros((len(p_medios_i), len(p_medios_d)))
+        matriz_puntos = []
+        for i, (pmi1, pmi2) in enumerate(p_medios_i):
+            matriz_puntos.append([])
+            for j, (pmd1, pmd2) in enumerate(p_medios_d):
+                p1_triangulado, error1 = estimador.triangular(pmi1, pmd1, devolver_error = True)
+                p2_triangulado, error2 = estimador.triangular(pmi2, pmd2, devolver_error = True)
+                errores[i,j] = np.max(error1+error2)
+                matriz_puntos[i].append([p1_triangulado, p2_triangulado])
+                print(i,j, errores[i,j])
+        
+        mejores = np.argmin(errores, axis=1)
+        print(mejores)
+        disponibles_der = list(range(len(p_medios_d)))
+        print('Mejores:')
+        puntos_emp=[]
+        for pi, pd in enumerate(mejores):
+            if pd in disponibles_der:
+                puntos_emp.append([pi,pd])
+                disponibles_der.remove(pd)
+        print(puntos_emp)
+        print()
 
-            p1 = estimador.triangular(p1_i, p1_d)
-            p2 = estimador.triangular(p2_i, p2_d)
+        #for r1, r2 in zip(rois_izq, rois_der):#enumerate(emparejadas):
+        #p1_i, p2_i = puntos_medios(r1)
+        #p1_d, p2_d = puntos_medios(r2)
+
+        #p1 = estimador.triangular(p1_i, p1_d)
+        #p2 = estimador.triangular(p2_i, p2_d)
+        for pi, pd in puntos_emp:
+            p1, p2 = matriz_puntos[pi][pd]
+            roi1, roi2 = rois_izq[pi], rois_der[pd]
+
             buffer['long'].append(estimador.distancia(p1, p2))
             buffer['ang'].append(angulo(p1,p2))
             
             longitud, peores = ransac.estimar(buffer['long'], sigma=1, devolver_peores=True)
-            ang = np.mean(buffer['ang'])
+            #ang = np.mean(buffer['ang'])
+            error = errores[pi,pd]
 
-            frame_izq = dibujar_rois(frame_izq, [r1], txt=f'{estimador.distancia(p1, p2):.2f}mm, {ang:.2f}deg')
-            frame_der = dibujar_rois(frame_der, [r2], txt=f'{estimador.distancia(p1, p2):.2f}mm, {ang:.2f}deg')
-            a_escribir.append([f_count]+list(p1)+list(p2)+[estimador.distancia(p1, p2), angulo(p1,p2), longitud, ang])
+            frame_izq = dibujar_rois(frame_izq, [roi1], txt=f'{estimador.distancia(p1, p2):.2f}mm, {error:.2f}e')
+            frame_der = dibujar_rois(frame_der, [roi2], txt=f'{estimador.distancia(p1, p2):.2f}mm, {error:.2f}e')
+            a_escribir.append([f_count]+list(p1)+list(p2)+[estimador.distancia(p1, p2), angulo(p1,p2), longitud, error])
             
             #print(len(buffer['long']), estimador.distancia(p1,p2), longitud)
             #Se eliminan los 18 peores registros
