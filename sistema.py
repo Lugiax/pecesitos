@@ -291,62 +291,52 @@ while cam_izq.isOpened() or cam_der.isOpened():
     if detectar:
         rois_izq = loc.localizar(frame_izq)
         rois_der = loc.localizar(frame_der)
-        #emparejadas = emparejar_rois(frame_izq, frame_der, rois_izq, rois_der)
+        if len(rois_izq)*len(rois_der)!=0:
+            #emparejadas = emparejar_rois(frame_izq, frame_der, rois_izq, rois_der)
 
-        p_medios_i = [puntos_medios(r) for r in rois_izq]
-        p_medios_d = [puntos_medios(r) for r in rois_der]
-        #ref = 0 if len(p_medios[0])>=len(p_medios[1]) else 1 #0-izquierda, 1-derecha
-        errores = np.zeros((len(p_medios_i), len(p_medios_d)))
-        matriz_puntos = []
-        for i, (pmi1, pmi2) in enumerate(p_medios_i):
-            matriz_puntos.append([])
-            for j, (pmd1, pmd2) in enumerate(p_medios_d):
-                p1_triangulado, error1 = estimador.triangular(pmi1, pmd1, devolver_error = True)
-                p2_triangulado, error2 = estimador.triangular(pmi2, pmd2, devolver_error = True)
-                errores[i,j] = np.max(error1+error2)
-                matriz_puntos[i].append([p1_triangulado, p2_triangulado])
-                print(i,j, errores[i,j])
-        
-        mejores = np.argmin(errores, axis=1)
-        print(mejores)
-        disponibles_der = list(range(len(p_medios_d)))
-        print('Mejores:')
-        puntos_emp=[]
-        for pi, pd in enumerate(mejores):
-            if pd in disponibles_der:
-                puntos_emp.append([pi,pd])
-                disponibles_der.remove(pd)
-        print(puntos_emp)
-        print()
-
-        #for r1, r2 in zip(rois_izq, rois_der):#enumerate(emparejadas):
-        #p1_i, p2_i = puntos_medios(r1)
-        #p1_d, p2_d = puntos_medios(r2)
-
-        #p1 = estimador.triangular(p1_i, p1_d)
-        #p2 = estimador.triangular(p2_i, p2_d)
-        for pi, pd in puntos_emp:
-            p1, p2 = matriz_puntos[pi][pd]
-            roi1, roi2 = rois_izq[pi], rois_der[pd]
-
-            buffer['long'].append(estimador.distancia(p1, p2))
-            buffer['ang'].append(angulo(p1,p2))
+            p_medios_i = [puntos_medios(r) for r in rois_izq]
+            p_medios_d = [puntos_medios(r) for r in rois_der]
+            #ref = 0 if len(p_medios[0])>=len(p_medios[1]) else 1 #0-izquierda, 1-derecha
+            errores = np.zeros((len(p_medios_i), len(p_medios_d)))
+            matriz_puntos = []
+            for i, (pmi1, pmi2) in enumerate(p_medios_i):
+                matriz_puntos.append([])
+                for j, (pmd1, pmd2) in enumerate(p_medios_d):
+                    p1_triangulado, error1 = estimador.triangular(pmi1, pmd1, devolver_error = True)
+                    p2_triangulado, error2 = estimador.triangular(pmi2, pmd2, devolver_error = True)
+                    errores[i,j] = np.max(error1+error2)
+                    matriz_puntos[i].append([p1_triangulado, p2_triangulado])
             
-            longitud, peores = ransac.estimar(buffer['long'], sigma=1, devolver_peores=True)
-            #ang = np.mean(buffer['ang'])
-            error = errores[pi,pd]
+            mejores = np.argmin(errores, axis=1)
+            disponibles_der = list(range(len(p_medios_d)))
+            puntos_emp=[]
+            for pi, pd in enumerate(mejores):
+                if pd in disponibles_der:
+                    puntos_emp.append([pi,pd])
+                    disponibles_der.remove(pd)
 
-            frame_izq = dibujar_rois(frame_izq, [roi1], txt=f'{estimador.distancia(p1, p2):.2f}mm, {error:.2f}e')
-            frame_der = dibujar_rois(frame_der, [roi2], txt=f'{estimador.distancia(p1, p2):.2f}mm, {error:.2f}e')
-            a_escribir.append([f_count]+list(p1)+list(p2)+[estimador.distancia(p1, p2), angulo(p1,p2), longitud, error])
-            
-            #print(len(buffer['long']), estimador.distancia(p1,p2), longitud)
-            #Se eliminan los 18 peores registros
-            if len(buffer['long']) > FPS+10:
-                _a = np.array(buffer['long'])
-                buffer['long'] = list(_a[peores[18:]])
-                #print(f'\t -- Eliminados: {_a[peores[:10]]}')
-            buffer['ang'] = buffer['ang'][-FPS:] #Se toma en cuenta solamente una ventana de 1s de angulos
+            #for pi, pd in puntos_emp:
+                    p1, p2 = matriz_puntos[pi][pd]
+                    roi1, roi2 = rois_izq[pi], rois_der[pd]
+
+                    buffer['long'].append(estimador.distancia(p1, p2))
+                    buffer['ang'].append(angulo(p1,p2))
+                    
+                    longitud, peores = ransac.estimar(buffer['long'], sigma=1, devolver_peores=True)
+                    #ang = np.mean(buffer['ang'])
+                    error = errores[pi,pd]
+
+                    frame_izq = dibujar_rois(frame_izq, [roi1], txt=f'{estimador.distancia(p1, p2):.2f}mm, {error:.2f}e')
+                    frame_der = dibujar_rois(frame_der, [roi2], txt=f'{estimador.distancia(p1, p2):.2f}mm, {error:.2f}e')
+                    a_escribir.append([f_count]+list(p1)+list(p2)+[estimador.distancia(p1, p2), angulo(p1,p2), longitud, error])
+                    
+                    #print(len(buffer['long']), estimador.distancia(p1,p2), longitud)
+                    #Se eliminan los 18 peores registros
+                    if len(buffer['long']) > FPS+10:
+                        _a = np.array(buffer['long'])
+                        buffer['long'] = list(_a[peores[18:]])
+                        #print(f'\t -- Eliminados: {_a[peores[:10]]}')
+                    buffer['ang'] = buffer['ang'][-FPS:] #Se toma en cuenta solamente una ventana de 1s de angulos
 
 
 
@@ -367,6 +357,8 @@ while cam_izq.isOpened() or cam_der.isOpened():
     if frame_max>0 and (f_count-f0)>=frame_max:
         print('Saliendo...')
         break
+    elif (f_count-f0)%100 == 0:
+        print(f'\tProcesando cuadro {f_count}')
 
 cam_izq.release()
 cam_der.release()
