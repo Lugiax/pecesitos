@@ -18,7 +18,6 @@ def extractor_datos(grab_path, secc_path, args):
 
     altura = 210
     posiciones_p = [i*15+305+correcciones_z[pez] for i in range(10)]
-    print(posiciones_p)
     posiciones_h = [78, 132, 192]
     centro_cam = [180,altura,55]
 
@@ -98,7 +97,7 @@ def extractor_datos(grab_path, secc_path, args):
             #print(f'\n P{i+1}-H{j+1} : {inicio} - {fin} --- {corrida.shape}')
             dist = corrida.distancia_inmediata
             prof = corrida.profundidad
-            e_l = ( 1 - corrida.distancia_inmediata / longitudes[pez])**2 
+            e_l = abs( 1 - corrida.distancia_inmediata / longitudes[pez]) * 100#( 1 - corrida.distancia_inmediata / longitudes[pez])**2 
             
             
             coord_estimada = (np.array([corrida.p1x, corrida.p1y, corrida.p1z]).T + 
