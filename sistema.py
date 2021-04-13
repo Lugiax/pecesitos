@@ -309,13 +309,11 @@ while cam_izq.isOpened() or cam_der.isOpened():
             
             mejores = np.argmin(errores, axis=1)
             disponibles_der = list(range(len(p_medios_d)))
-            puntos_emp=[]
             for pi, pd in enumerate(mejores):
-                if pd in disponibles_der:
-                    puntos_emp.append([pi,pd])
+                error = errores[pi,pd]
+                if pd in disponibles_der and error<30:
                     disponibles_der.remove(pd)
 
-            #for pi, pd in puntos_emp:
                     p1, p2 = matriz_puntos[pi][pd]
                     roi1, roi2 = rois_izq[pi], rois_der[pd]
 
@@ -324,7 +322,6 @@ while cam_izq.isOpened() or cam_der.isOpened():
                     
                     longitud, peores = ransac.estimar(buffer['long'], sigma=1, devolver_peores=True)
                     #ang = np.mean(buffer['ang'])
-                    error = errores[pi,pd]
 
                     frame_izq = dibujar_rois(frame_izq, [roi1], txt=f'{estimador.distancia(p1, p2):.2f}mm, {error:.2f}e')
                     frame_der = dibujar_rois(frame_der, [roi2], txt=f'{estimador.distancia(p1, p2):.2f}mm, {error:.2f}e')
