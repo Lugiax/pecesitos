@@ -4,9 +4,19 @@ import os
 from glob import glob
 from skimage.feature import match_descriptors, ORB, plot_matches
 from skimage.color import rgb2gray
+from skimage.exposure import adjust_sigmoid, match_histograms
 import numpy as np
 
-def obtener_frame(camara, frame=None, ret=False, voltear=False):
+def procesar_Sisal(img, otra_img=None):
+    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    rgb = adjust_sigmoid(rgb, cutoff=0.5, gain=10, inv=False)
+    if otra_img is not None:
+        ref = cv2.cvtColor(otra_img, cv2.COLOR_BGR2RGB)
+        rgb = match_histograms(rgb, ref, multichannel=True)
+    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+
+
+def obtener_frame(camara, frame=None, ret=False, voltear=False, proc_func=None, otra_img=None):
     max_frames_error = 50
     error_frames_counter = 0
     while not ret and camara.isOpened():
@@ -15,9 +25,13 @@ def obtener_frame(camara, frame=None, ret=False, voltear=False):
             ret, frame = camara.read()
         elif error_frames_counter==max_frames_error:
             print('LIMITE DE FRAMES CON ERROR ALCANZADO. SALIENDO.')
+            camara.release()
             break
     if voltear:
         frame = cv2.rotate(frame, cv2.ROTATE_180)
+
+    if proc_func is not None:
+        frame = proc_func(frame, otra_img)
 
     return frame, error_frames_counter
 
@@ -151,16 +165,22 @@ class Grabador:
 
 
 if __name__=='__main__':
-    #g = Grabador('/home/carlos/Documentos/pecesitos/corridas/NCA_pool_2/res_imgs/0/grabacion.mp4', fps=5)
-    #g.desde_carpeta('/home/carlos/Documentos/pecesitos/corridas/NCA_pool_2/res_imgs/0')
-    #g.desde_archivo(('/media/carlos/Archivos/PROYECTO/angulos2/1/izq1.MP4'))
-    import numpy as np
+    from skimage.io import imread
+    from skimage.exposure import adjust_log, rescale_intensity, adjust_sigmoid
+    import matplotlib.pyplot as plt
+    import cv2
+    img_path = '/home/carlos/Vídeos/Sisal/2/res_sis/imgs/der/frame_der_9.png'
+    img = cv2.imread(img_path)
 
-    ransac = EstimadorRansac()
-    datos = np.random.normal(1,.4,5)
-    mean, peores = ransac.estimar(datos, sigma=0.5, devolver_peores=True)
-    print(mean)
-    print( peores)
+    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    fig, ax = plt.subplots(1,3, figsize=(15,5))
+    rgb1 = rescale_intensity(adjust_sigmoid(rgb, cutoff=0.5, gain=10, inv=False))#adjust_gamma(adjust_sigmoid(rgb, cutoff=0.5, gain=10, inv=False), gamma=0.7)
+    ax[0].imshow(rgb1)
+    rgb1 = rescale_intensity(adjust_sigmoid(rgb, cutoff=0.5, gain=10, inv=False))
+    ax[1].imshow(rgb1)
+    rgb1 = rescale_intensity(adjust_sigmoid(rgb, cutoff=0.5, gain=10, inv=False))
+    ax[2].imshow(rgb1)
+    plt.show()
 
 
 

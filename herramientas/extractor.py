@@ -4,12 +4,14 @@ from datetime import date
 import os
 import time
 from glob import glob
-from general import frames_to_time, adjustFrame, obtener_frame, Grabador
+from general import frames_to_time, adjustFrame, obtener_frame, Grabador, procesar_Sisal
 import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('data_dir', type=str,
                     help='Directorio base donde se encuentran las imágenes y las máscaras')
+parser.add_argument('--pattern_size', type=str,
+                    help='Cuadros de diferencia del video izquierdo', default='8x6')
 parser.add_argument('--offset_i', type=int,
                     help='Cuadros de diferencia del video izquierdo', default=0)
 parser.add_argument('--offset_d', type=int,
@@ -32,7 +34,7 @@ parser.add_argument('--voltear_d', action='store_true',
 
 args = parser.parse_args()
 
-pattern_size = (8,6)
+pattern_size = tuple([int(i) for i in args.pattern_size.split('x')])
 videos_path = args.data_dir
 assert os.path.isdir(videos_path), 'Ingrese un directorio de videos válido'
 video_path_izq = glob(os.path.join(videos_path, 'izq*.MP4'))[0]
@@ -93,8 +95,8 @@ pausa = True
 save = False
 grabar = False
 
-frame_izq, frame_counter_izq = obtener_frame(cam_izq, voltear=args.voltear_i)
-frame_der, frame_counter_der = obtener_frame(cam_der, voltear=args.voltear_d)
+frame_der, frame_counter_der = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=procesar_Sisal)
+frame_izq, frame_counter_izq = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=procesar_Sisal, otra_img=frame_der)
 
 if args.grabar:
     print('Inicio de la grabación')
@@ -128,11 +130,16 @@ while cam_izq.isOpened() or cam_der.isOpened():
         save = not save
     elif key_pressed == ord('g'):
         grabar= not grabar
+    elif key_pressed == ord('n'):
+        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=procesar_Sisal)
+        frame_counter_der += error_frames
+        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=procesar_Sisal, otra_img=frame_der)
+        frame_counter_izq += error_frames
     elif pausa and key_pressed==ord('i'):
-        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i)
+        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=procesar_Sisal, otra_img=frame_der)
         frame_counter_izq += error_frames
     elif pausa and key_pressed==ord('d'):
-        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d)
+        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=procesar_Sisal)
         frame_counter_der += error_frames
     elif key_pressed == ord('c'):
         new_frame_izq = frame_izq.copy()
@@ -163,24 +170,24 @@ while cam_izq.isOpened() or cam_der.isOpened():
         desicion_key = cv2.waitKey(0)
         if desicion_key == ord('s'): #and ret_der and ret_izq:
             saveFrame(new_frame_izq, os.path.join(calib_dir, 'izq'),
-                     f'izq_{saved_frames_counter}')
+                     f'izq_{frame_counter_izq}')
             saveFrame(new_frame_der, os.path.join(calib_dir, 'der'),
-                     f'der_{saved_frames_counter}')
+                     f'der_{frame_counter_der}')
             saved_frames_counter += 1
         elif desicion_key == ord(' '):
             pausa = False
 
     elif not pausa:
-        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i)
-        frame_counter_izq += error_frames
-        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d)
+        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=procesar_Sisal)
         frame_counter_der += error_frames
+        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=procesar_Sisal, otra_img=frame_der)
+        frame_counter_izq += error_frames
 
     if grabar:
         grabador_i.agregar(frame_izq)
         grabador_d.agregar(frame_der)
         frame_counter_grabacion += 1
-        if eval(args.max_frames)!=0 and frame_counter > eval(args.max_frames):
+        if eval(args.max_frames)!=0 and frame_counter_grabacion > eval(args.max_frames) or :
             break
 
     if not args.no_mostrar:
