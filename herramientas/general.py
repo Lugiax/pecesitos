@@ -119,7 +119,7 @@ def emparejar_rois(frame1, frame2, rois1, rois2, plot=False):
 
 
 class Grabador:
-    def __init__(self, nombre='grabacion.mp4', fps=25):
+    def __init__(self, nombre='grabacion.MP4', fps=25):
         self.nombre = nombre
         self.fps = fps
         self.escritor = None

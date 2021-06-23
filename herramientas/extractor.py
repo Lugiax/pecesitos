@@ -6,6 +6,7 @@ import time
 from glob import glob
 from general import frames_to_time, adjustFrame, obtener_frame, Grabador, procesar_Sisal
 import argparse
+import csv
 
 parser = argparse.ArgumentParser()
 parser.add_argument('data_dir', type=str,
@@ -31,6 +32,12 @@ parser.add_argument('--voltear_i', action='store_true',
                     help='Rotar 180 la imagen izquierda')
 parser.add_argument('--voltear_d', action='store_true',
                     help='Rotar 180 la imagen derecha')
+parser.add_argument('--proc_func', type=str,
+                    help='Número de cuadros a grabar.', default='') 
+parser.add_argument('--archivo_res', type=str,
+                    help='Dirección del archivo de respuesta', default=None)
+parser.add_argument('--intervalo_long', type=str,
+                    help='intervalo de longitudes a considerar válidas. Ej: [50, 80]', default='[50, 80]')
 
 args = parser.parse_args()
 
@@ -49,13 +56,22 @@ video_delay = 0.00
 frames_offset_izq = args.offset_i
 frames_offset_der = args.offset_d
 FPS = 25
-img_scale = 0.3
+img_scale = 0.35
 show = True
 frame0 = max(abs(frames_offset_der-frames_offset_izq),
             int(eval(args.frame0)))
 #grabar = args.grabar
 
 #---------------------------------------------------------------------------------------
+
+def procesar_Sisal(img, *otros):
+    return img
+
+if args.proc_func == 'procesar_Sisal':
+    proc_func = procesar_Sisal
+else:
+    proc_func = None
+
 
 if not os.path.isdir(dir_to_save):
     os.makedirs(dir_to_save)
@@ -94,14 +110,26 @@ frame_counter_grabacion = 0
 pausa = True
 save = False
 grabar = False
+frames_a_extraer = []
 
-frame_der, frame_counter_der = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=procesar_Sisal)
-frame_izq, frame_counter_izq = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=procesar_Sisal, otra_img=frame_der)
+if args.archivo_res is not None:
+    intervalo = eval(args.intervalo_long)
+    print(intervalo, type(intervalo))
+    with open(os.path.join(videos_path, args.archivo_res), 'r') as f:
+        reader = list(csv.reader(f, delimiter=','))
+        frames_a_extraer = [int(r[0]) for r in reader[1:] if intervalo[0] <= float(r[7]) <= intervalo[1]]
+    args.grabar=True
+    pausa=False
+    args.no_mostrar = True
+print(frames_a_extraer)
+
+frame_der, frame_counter_der = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=proc_func)
+frame_izq, frame_counter_izq = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=proc_func, otra_img=frame_der)
 
 if args.grabar:
     print('Inicio de la grabación')
-    grabador_i = Grabador(os.path.join(dir_to_save, 'grabación_izq.mp4'),FPS)
-    grabador_d = Grabador(os.path.join(dir_to_save, 'grabación_der.mp4'),FPS)
+    grabador_i = Grabador(os.path.join(dir_to_save, 'grabación_izq.MP4'),FPS)
+    grabador_d = Grabador(os.path.join(dir_to_save, 'grabación_der.MP4'),FPS)
     if args.no_mostrar:
         pausa = False
         grabar = True
@@ -131,15 +159,15 @@ while cam_izq.isOpened() or cam_der.isOpened():
     elif key_pressed == ord('g'):
         grabar= not grabar
     elif key_pressed == ord('n'):
-        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=procesar_Sisal)
+        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=proc_func)
         frame_counter_der += error_frames
-        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=procesar_Sisal, otra_img=frame_der)
+        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=proc_func, otra_img=frame_der)
         frame_counter_izq += error_frames
     elif pausa and key_pressed==ord('i'):
-        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=procesar_Sisal, otra_img=frame_der)
+        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=proc_func, otra_img=frame_der)
         frame_counter_izq += error_frames
     elif pausa and key_pressed==ord('d'):
-        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=procesar_Sisal)
+        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=proc_func)
         frame_counter_der += error_frames
     elif key_pressed == ord('c'):
         new_frame_izq = frame_izq.copy()
@@ -178,16 +206,20 @@ while cam_izq.isOpened() or cam_der.isOpened():
             pausa = False
 
     elif not pausa:
-        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=procesar_Sisal)
+        frame_der, error_frames = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=proc_func)
         frame_counter_der += error_frames
-        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=procesar_Sisal, otra_img=frame_der)
+        frame_izq, error_frames = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=proc_func, otra_img=frame_der)
         frame_counter_izq += error_frames
 
-    if grabar:
+    if grabar and (
+        (len(frames_a_extraer)!=0 and frame_counter_izq-1 in frames_a_extraer) or
+        len(frames_a_extraer)==0
+        ):
+        #print(f'Guardando frame {frame_counter_izq}-{frame_counter_der}')
         grabador_i.agregar(frame_izq)
         grabador_d.agregar(frame_der)
         frame_counter_grabacion += 1
-        if eval(args.max_frames)!=0 and frame_counter_grabacion > eval(args.max_frames) or :
+        if eval(args.max_frames)!=0 and frame_counter_grabacion > eval(args.max_frames):
             break
 
     if not args.no_mostrar:
@@ -218,9 +250,9 @@ while cam_izq.isOpened() or cam_der.isOpened():
 
     if save:
         saveFrame(frame_izq, os.path.join(imgs_dir, 'izq'),
-                 f'izq_{saved_frames_counter}')
+                 f'izq_{frame_counter_izq}')
         saveFrame(frame_der, os.path.join(imgs_dir, 'der'),
-                 f'der_{saved_frames_counter}')
+                 f'der_{frame_counter_der}')
         saved_frames_counter += 1
         if pausa: save = not save
     
