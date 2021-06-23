@@ -64,9 +64,6 @@ frame0 = max(abs(frames_offset_der-frames_offset_izq),
 
 #---------------------------------------------------------------------------------------
 
-def procesar_Sisal(img, *otros):
-    return img
-
 if args.proc_func == 'procesar_Sisal':
     proc_func = procesar_Sisal
 else:
