@@ -5,15 +5,17 @@ from glob import glob
 from skimage.feature import match_descriptors, ORB, plot_matches
 from skimage.color import rgb2gray
 from skimage.exposure import adjust_sigmoid, match_histograms
+from skimage.filters import gaussian
 import numpy as np
 
 def procesar_Sisal(img, otra_img=None):
     rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     rgb = adjust_sigmoid(rgb, cutoff=0.5, gain=10, inv=False)
+    rgb = gaussian(rgb, sigma = 2, multichannel=True)
     if otra_img is not None:
         ref = cv2.cvtColor(otra_img, cv2.COLOR_BGR2RGB)
         rgb = match_histograms(rgb, ref, multichannel=True)
-    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    return cv2.cvtColor(rgb.astype(np.float32), cv2.COLOR_RGB2BGR)
 
 
 def obtener_frame(camara, frame=None, ret=False, voltear=False, proc_func=None, otra_img=None):
