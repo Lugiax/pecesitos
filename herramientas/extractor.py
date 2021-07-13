@@ -111,14 +111,12 @@ frames_a_extraer = []
 
 if args.archivo_res is not None:
     intervalo = eval(args.intervalo_long)
-    print(intervalo, type(intervalo))
     with open(os.path.join(videos_path, args.archivo_res), 'r') as f:
         reader = list(csv.reader(f, delimiter=','))
-        frames_a_extraer = [int(r[0]) for r in reader[1:] if intervalo[0] <= float(r[7]) <= intervalo[1]]
+        frames_a_extraer = set([int(r[0]) for r in reader[1:] if intervalo[0] <= float(r[7]) <= intervalo[1]])
     args.grabar=True
     pausa=False
     args.no_mostrar = True
-print(frames_a_extraer)
 
 frame_der, frame_counter_der = obtener_frame(cam_der, voltear=args.voltear_d, proc_func=proc_func)
 frame_izq, frame_counter_izq = obtener_frame(cam_izq, voltear=args.voltear_i, proc_func=proc_func, otra_img=frame_der)

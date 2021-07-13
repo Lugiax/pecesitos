@@ -63,7 +63,15 @@ print('Iniciado :D')
 #print('Iniciado :D')
 
 ###Funciones de apoyo ----------------------------------------------------------------------
-def dibujar_rois(img, rois, color=(255,0,0), conf_min=0.5, txt=''):
+COLORS = [[214, 64, 69][::-1],
+          [94, 243, 140][::-1],
+          [255, 209, 102][::-1],
+          [162, 215, 41][::-1],
+          [250, 255, 253][::-1],
+          [219, 213, 181][::-1],
+          [68, 175, 105][::-1]
+        ]
+def dibujar_rois(img, rois, color=(255,0,0), conf_min=0, txt=''):
     for x1, y1, x2, y2, conf in rois:
         if conf>conf_min:
             img = cv2.rectangle(img, (x1,y1), (x2,y2), color)
@@ -289,6 +297,8 @@ while cam_izq.isOpened() or cam_der.isOpened():
         break
 
     if detectar:
+        if pausa:
+            detectar=False
         rois_izq = loc.localizar(frame_izq)
         rois_der = loc.localizar(frame_der)
         if len(rois_izq)*len(rois_der)!=0:
@@ -306,7 +316,8 @@ while cam_izq.isOpened() or cam_der.isOpened():
                     p2_triangulado, error2 = estimador.triangular(pmi2, pmd2, devolver_error = True)
                     errores[i,j] = np.max(error1+error2)
                     matriz_puntos[i].append([p1_triangulado, p2_triangulado])
-            
+            frame_izq = dibujar_rois(frame_izq, rois_izq, color=(204,153,102))
+            frame_der = dibujar_rois(frame_der, rois_der, color=(204,153,102))
             mejores = np.argmin(errores, axis=1)
             disponibles_der = list(range(len(p_medios_d)))
             for pi, pd in enumerate(mejores):
@@ -321,11 +332,11 @@ while cam_izq.isOpened() or cam_der.isOpened():
                     buffer['ang'].append(angulo(p1,p2))
                     
                     longitud, peores = ransac.estimar(buffer['long'], sigma=1, devolver_peores=True)
-                    #ang = np.mean(buffer['ang'])
+                    ang = np.mean(buffer['ang'])
 
-                    frame_izq = dibujar_rois(frame_izq, [roi1], txt=f'{estimador.distancia(p1, p2):.2f}mm, {error:.2f}e')
-                    frame_der = dibujar_rois(frame_der, [roi2], txt=f'{estimador.distancia(p1, p2):.2f}mm, {error:.2f}e')
-                    a_escribir.append([f_count]+list(p1)+list(p2)+[estimador.distancia(p1, p2), angulo(p1,p2), longitud, error])
+                    frame_izq = dibujar_rois(frame_izq, [roi1], txt=f'{estimador.distancia(p1, p2):.2f}mm {error:.2f}e', color=tuple(COLORS[pi]))#')#{ang:.1f}grad')#
+                    frame_der = dibujar_rois(frame_der, [roi2], txt=f'{estimador.distancia(p1, p2):.2f}mm {error:.2f}e', color=tuple(COLORS[pi]))#')#{ang:.1f}grad')#
+                    a_escribir.append([f_count]+list(p1)+list(p2)+[estimador.distancia(p1, p2), angulo(p1,p2), longitud, error, pi])
                     
                     #print(len(buffer['long']), estimador.distancia(p1,p2), longitud)
                     #Se eliminan los 18 peores registros

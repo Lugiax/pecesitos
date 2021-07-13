@@ -11,7 +11,7 @@ import numpy as np
 def procesar_Sisal(img, otra_img=None):
     rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     rgb = adjust_sigmoid(rgb, cutoff=0.5, gain=10, inv=False)
-    rgb = gaussian(rgb, sigma = 2, multichannel=True)
+    rgb = gaussian(rgb, sigma = 3, multichannel=True)
     if otra_img is not None:
         ref = cv2.cvtColor(otra_img, cv2.COLOR_BGR2RGB)
         rgb = match_histograms(rgb, ref, multichannel=True)
@@ -160,6 +160,7 @@ class Grabador:
             print('Creando el escritor')
             self.escritor = cv2.VideoWriter(self.nombre, cv2.VideoWriter_fourcc(*'mp4v'),
                                             self.fps, tuple(frame.shape[:2][::-1]))
+        
         self.escritor.write(frame)
     
     def terminar(self):
